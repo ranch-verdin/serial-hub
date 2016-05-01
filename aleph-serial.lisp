@@ -1,8 +1,6 @@
-(eval-when (:compile-toplevel :load-toplevel)
-  (ql:quickload '(:optima :cffi :iterate :external-program))
-  (in-package :cl-user)
-  (use-package '(:optima :cffi :iterate)))
 (in-package :cl-user)
+(eval-when (:compile-toplevel :load-toplevel)
+  (use-package '(:optima :cffi :iterate)))
 (defparameter *start-flag* #x12)
 (defparameter *end-flag* #x13)
 (defparameter *dle* #x7D)
@@ -56,12 +54,12 @@
 	    (write-byte byte stream)))
   (write-byte *end-flag* stream))
 
-(defun send-serial-command (stream msg-type params)
+(defun send-serial-command (msg-type params)
   (prog1 (send-framed-message (cons (foreign-enum-value
 				     'serial-msg-types msg-type)
 				    params)
-			      stream)
-    (force-output stream)))
+			      *aleph-output-stream*)
+    (force-output *aleph-output-stream*)))
 
 (defparameter *s16-max* #x7FFF)
 (defparameter *s16-min* (- #x8000))
@@ -96,109 +94,88 @@
   (assert (<=  lo *char-max*))
   (u16-s16 (+ lo (ash hi 8))))
 
-(defun serial-debug (stream control-string &rest format-arguments)
-  (send-serial-command stream
-		       :eSerialMsg_debug
+(defun serial-debug (control-string &rest format-arguments)
+  (send-serial-command :eSerialMsg_debug
 		       (coerce (string-to-octets
 				(apply #'format nil control-string
 				       format-arguments)
 				:external-format :ascii)
 			       'list)))
 
-(defun serial-dumpIns (stream)
-  (send-serial-command stream
-		       :eSerialMsg_dumpIns
+(defun serial-dumpIns ()
+  (send-serial-command :eSerialMsg_dumpIns
 		       '()))
 
-(defun serial-dumpParams (stream)
-  (send-serial-command stream
-		       :eSerialMsg_dumpParams
+(defun serial-dumpParams ()
+  (send-serial-command :eSerialMsg_dumpParams
 		       '()))
-(defun serial-dumpOutputs (stream)
-  (send-serial-command stream
-		       :eSerialMsg_dumpOutputs
+(defun serial-dumpOutputs ()
+  (send-serial-command :eSerialMsg_dumpOutputs
 		       '()))
-(defun serial-dumpConnections (stream)
-  (send-serial-command stream
-		       :eSerialMsg_dumpConnections
+(defun serial-dumpConnections ()
+  (send-serial-command :eSerialMsg_dumpConnections
 		       '()))
-(defun serial-dumpOps (stream)
-  (send-serial-command stream
-		       :eSerialMsg_dumpOps
+(defun serial-dumpOps ()
+  (send-serial-command :eSerialMsg_dumpOps
 		       '()))
-(defun serial-dumpOpDescriptions (stream)
-  (send-serial-command stream
-		       :eSerialMsg_dumpOpDescriptions
+(defun serial-dumpOpDescriptions ()
+  (send-serial-command :eSerialMsg_dumpOpDescriptions
 		       '()))
 
 
-(defun serial-trigger-param (stream addr val)
-  (send-serial-command stream
-		       :eSerialMsg_triggerParam
+(defun serial-trigger-param (addr val)
+  (send-serial-command :eSerialMsg_triggerParam
 		       (append (s16-chars addr)
 			       (s16-chars val))))
 
-(defun serial-trigger-in (stream addr val)
-  (send-serial-command stream
-		       :eSerialMsg_triggerIn
+(defun serial-trigger-in (addr val)
+  (send-serial-command :eSerialMsg_triggerIn
 		       (append (s16-chars addr)
 			       (s16-chars val))))
 
-(defun serial-query-in (stream addr)
-  (send-serial-command stream
-		       :eSerialMsg_queryIn
+(defun serial-query-in (addr)
+  (send-serial-command :eSerialMsg_queryIn
 		       (s16-chars addr)))
 
-(defun serial-query-param (stream addr)
-  (send-serial-command stream
-		       :eSerialMsg_queryParam
+(defun serial-query-param (addr)
+  (send-serial-command :eSerialMsg_queryParam
 		       (s16-chars addr)))
-(defun serial-connect (stream out in)
-  (send-serial-command stream
-		       :eSerialMsg_connect
+(defun serial-connect (out in)
+  (send-serial-command :eSerialMsg_connect
 		       (append (s16-chars out)
 			       (s16-chars in))))
-(defun serial-disconnect (stream out)
-  (send-serial-command stream
-		       :eSerialMsg_disconnect
+(defun serial-disconnect (out)
+  (send-serial-command :eSerialMsg_disconnect
 		       (s16-chars out)))
-(defun serial-newOp (stream type)
-  (send-serial-command stream
-		       :eSerialMsg_newOp
+(defun serial-newOp (type)
+  (send-serial-command :eSerialMsg_newOp
 		       (s16-chars type)))
-(defun serial-deleteOp (stream op)
-  (send-serial-command stream
-		       :eSerialMsg_deleteOp
+(defun serial-deleteOp (op)
+  (send-serial-command :eSerialMsg_deleteOp
 		       (s16-chars op)))
-(defun serial-storePreset (stream preset)
-  (send-serial-command stream
-		       :eSerialMsg_storePreset
+(defun serial-storePreset (preset)
+  (send-serial-command :eSerialMsg_storePreset
 		       (s16-chars preset)))
-(defun serial-recallPreset (stream preset)
-  (send-serial-command stream
-		       :eSerialMsg_recallPreset
+(defun serial-recallPreset (preset)
+  (send-serial-command :eSerialMsg_recallPreset
 		       (s16-chars preset)))
 
-(defun serial-bfinProgStart (stream)
-  (send-serial-command stream
-		       :eSerialMsg_bfinProgStart
+(defun serial-bfinProgStart ()
+  (send-serial-command :eSerialMsg_bfinProgStart
 		       '()))
-(defun serial-bfinHexChunk (stream bytes)
-  (send-serial-command stream
-		       :eSerialMsg_bfinHexChunk
+(defun serial-bfinHexChunk (bytes)
+  (send-serial-command :eSerialMsg_bfinHexChunk
 		       bytes))
-(defun serial-bfinDscChunk (stream bytes)
-  (send-serial-command stream
-		       :eSerialMsg_bfinDscChunk
+(defun serial-bfinDscChunk (bytes)
+  (send-serial-command :eSerialMsg_bfinDscChunk
 		       bytes))
-(defun serial-bfinProgEnd (stream)
-  (send-serial-command stream
-		       :eSerialMsg_bfinProgEnd
+(defun serial-bfinProgEnd ()
+  (send-serial-command :eSerialMsg_bfinProgEnd
 		       '()))
 
-(defun serial-send-aleph-module (stream module-path dsc-path
+(defun serial-send-aleph-module (module-path dsc-path
 				 &optional (chunk-pause 0.01))
-  (serial-bfinProgStart stream)
+  (serial-bfinProgStart)
   (let ((buf (make-array 64
 			 :element-type '(unsigned-byte 8))))
     (with-open-file (module-stream module-path
@@ -207,7 +184,7 @@
       (loop for read = (read-sequence buf module-stream)
 	 while (plusp read)
 	 do (sleep chunk-pause)
-	   (serial-bfinHexChunk stream (subseq (coerce buf 'list)
+	   (serial-bfinHexChunk (subseq (coerce buf 'list)
 					       0 read))))
     (with-open-file (dsc-stream dsc-path
 				:direction :input
@@ -215,10 +192,10 @@
       (loop for read = (read-sequence buf dsc-stream)
 	 while (plusp read)
 	 do (sleep chunk-pause)
-	   (serial-bfinDscChunk stream (subseq (coerce buf 'list)
+	   (serial-bfinDscChunk (subseq (coerce buf 'list)
 					       0 read)))))
   (sleep chunk-pause)
-  (serial-bfinProgEnd stream))
+  (serial-bfinProgEnd))
 
 (defun eat-leading-string (chars)
   (iterate (for remaining on chars)
@@ -338,48 +315,57 @@
      (list :bfin-echo-received))
     (otherwise (break "unknown message: ~A" bytes))))
 
+(defparameter *aleph-dev* "/dev/ttyACM0")
 
-;;;Some stinky debug stuff follows...
+(defvar *aleph-input-stream* nil)
+
+(defmacro with-aleph-input-stream (&body body)
+  `(with-open-file (*aleph-input-stream* *aleph-dev*
+			   :direction :io
+			   :if-exists :overwrite
+			   :element-type '(unsigned-byte 8))
+     ,@body))
+
 (defun start-debug-listener ()
   (list (multiple-value-list
-	 (external-program:run "stty" '("-F" "/dev/ttyACM0" "raw")))
+	 (external-program:run "stty" '("-F" *aleph-dev* "raw")))
 	(bt:make-thread
 	 (lambda ()
-	   (with-open-file (stream "/dev/ttyACM0"
-				   :direction :io
-				   :if-exists :overwrite
-				   :element-type '(unsigned-byte 8))
-	     (loop (print (serial-unpack-message (serial-recv-msg stream)))))))))
+	   (loop (print (serial-unpack-message
+			 (serial-recv-msg *aleph-input-stream*))))))))
+
+(defvar *aleph-output-stream* nil)
+
+(defmacro with-aleph-output-stream (&body body)
+  `(with-open-file (*aleph-output-stream* *aleph-dev*
+					  :direction :output
+					  :if-exists :overwrite
+					  :element-type '(unsigned-byte 8))
+     ,@body))
 
 (defun test-all-commands ()
-  (with-open-file (stream "/dev/ttyACM0"
-			  :direction :output
-			  :if-exists :overwrite
-			  :element-type '(unsigned-byte 8))
-    (serial-dumpIns stream)
-    (serial-dumpParams stream)
-    (serial-trigger-param stream 3 3)
-    (serial-trigger-in stream 4 4)
-    (serial-query-in stream 4)
-    (serial-query-param stream 5)(serial-dumpoutputs stream)
-    (serial-dumpconnections stream)
-    (serial-dumpops stream)(sleep 1)
-    (serial-dumpopdescriptions stream)
-    (serial-connect stream 1 1)
-    (serial-disconnect stream 1)
-    (serial-newOp stream 1)
-    (serial-deleteop stream 1)
-    (serial-recallPreset stream 1)
-    (serial-storePreset stream 1)
+  (with-aleph-output-stream
+    (serial-dumpIns)
+    (serial-dumpParams)
+    (serial-trigger-param 3 3)
+    (serial-trigger-in 4 4)
+    (serial-query-in 4)
+    (serial-query-param 5)
+    (serial-dumpoutputs)
+    (serial-dumpconnections)
+    (serial-dumpops)(sleep 1)
+    (serial-dumpopdescriptions)
+    (serial-connect 1 1)
+    (serial-disconnect 1)
+    (serial-newOp 1)
+    (serial-deleteop 1)
+    (serial-recallPreset 1)
+    (serial-storePreset 1)
     ))
 
 (defun test-bfin-module-load ()
-  (with-open-file (stream "/dev/ttyACM0"
-			  :direction :output
-			  :if-exists :overwrite
-			  :element-type '(unsigned-byte 8))
-    (serial-send-aleph-module stream
-			      "/home/rick/git_checkouts/aleph/modules/grains/grains.ldr"
+  (with-aleph-output-stream
+    (serial-send-aleph-module "/home/rick/git_checkouts/aleph/modules/grains/grains.ldr"
 			      "/home/rick/git_checkouts/aleph/modules/grains/grains.dsc" 0.001)))
 
 (defvar *local-hex-buf* nil)
@@ -403,48 +389,3 @@
 (defun hexdump (li &optional)
   (loop for el in li
      collect (format nil "~X" el)))
-
-;;Some even stinkier debug stuff used to query fifo ~/foo
-#+nil
-(with-open-file (stream "/home/rick/foo"
-			:direction :output;:io
-			:if-exists :overwrite
-			:external-format :ascii)
-  (serial-debug stream "noshrats ~A" 'woohoo))
-
-#+nil
-(with-open-file (stream "/home/rick/foo"
-			:direction :output;:io
-			:if-exists :overwrite
-			:element-type '(unsigned-byte 8))
-  (serial-debug stream "noshrats ~A" 'woohoo)
-  (serial-dumpIns stream)
-  (serial-dumpParams stream)
-  (serial-trigger-param stream 3 3)
-  (serial-trigger-in stream 4 4)
-  (serial-query-in stream 4)
-  (serial-query-param stream 5))
-
-#+nil
-(bt:make-thread
- (lambda ()
-   (with-open-file (stream "/home/rick/foo"
-			   :direction :output;:io
-			   :if-exists :overwrite
-			   :element-type '(unsigned-byte 8))
-
-     (loop (sleep 1)
-	(serial-debug stream "noshrats ~A" 'woohoo)
-	(serial-dumpIns stream)
-	(serial-dumpParams stream)
-	(serial-trigger-param stream 3 3)
-	(serial-trigger-in stream 4 4)
-	(serial-query-in stream 4)
-	(serial-query-param stream 5)))))
-
-#+nil
-(with-open-file (stream "/home/rick/bar"
-			:direction :input
-			:element-type '(unsigned-byte 8))
-  (loop (print (serial-recv-msg stream))))
-

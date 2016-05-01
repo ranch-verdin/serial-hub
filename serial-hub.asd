@@ -8,5 +8,6 @@
   :components ((:file "package")
 	       (:file "aleph-serial")
 	       (:file "boomerang-serial")
-	       (:file "serial-hub")))
+	       (:file "serial-hub"))
+  :depends-on (:optima :cffi :iterate :external-program))
 
