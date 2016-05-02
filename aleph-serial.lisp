@@ -251,14 +251,14 @@
 #+nil
 (unpack-s16-s16-xN '(5 6 7 8 5 6 7 8))
 
-(defun serial-recv-msg (stream)
+(defun serial-recv-msg ()
   (let ((state :waiting)
 	(bytes nil))
     (iterate (until (eq state :done))
 	     ;; (if (> (length bytes)
 	     ;; 	    4096)
 	     ;; 	 (break "why the long message?"))
-	     (let ((new-byte (read-byte stream)))
+	     (let ((new-byte (read-byte *aleph-input-stream*)))
 	       (match state
 		 (:waiting (if (= new-byte *start-flag*)
 			       (setf state :receiving)))
@@ -321,18 +321,19 @@
 
 (defmacro with-aleph-input-stream (&body body)
   `(with-open-file (*aleph-input-stream* *aleph-dev*
-			   :direction :io
-			   :if-exists :overwrite
-			   :element-type '(unsigned-byte 8))
+					 :direction :io
+					 :if-exists :overwrite
+					 :element-type '(unsigned-byte 8))
      ,@body))
 
 (defun start-debug-listener ()
   (list (multiple-value-list
-	 (external-program:run "stty" '("-F" *aleph-dev* "raw")))
+	 (external-program:run "stty" '("-F" "/dev/ttyACM0" "115200" "raw")))
 	(bt:make-thread
 	 (lambda ()
-	   (loop (print (serial-unpack-message
-			 (serial-recv-msg *aleph-input-stream*))))))))
+	   (with-aleph-input-stream
+	     (loop (print (serial-unpack-message
+			   (serial-recv-msg)))))))))
 
 (defvar *aleph-output-stream* nil)
 

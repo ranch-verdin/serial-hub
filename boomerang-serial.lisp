@@ -49,47 +49,50 @@
 (defun send-brosync-cancel-rec-master ()
   (send-brosync-cmd +brosync-cancel-rec-message+))
 
-(defvar *brosync-state* :stopped)
+(defvar *brosync-state* :empty)
 (defvar *brosync-loop-origin* 0)
 (defvar *brosync-loop-duration* 0)
 
-(defun brosync-handle-message (byte)
+(defun brosync-handle-message (byte recv-time)
   (case *brosync-state*
-    (:empty (brosync-empty-handle-message byte))
+    (:empty (brosync-empty-handle-message byte recv-time))
 
-    (:stopped-master (brosync-stopped-master-handle-message byte))
-    (:rec-master (brosync-rec-master-handle-message byte))
-    (:play-master (brosync-play-master-handle-message byte))
+    (:stopped-master (brosync-stopped-master-handle-message byte recv-time))
+    (:rec-master (brosync-rec-master-handle-message byte recv-time))
+    (:play-master (brosync-play-master-handle-message byte recv-time))
 
-    (:stopped-slave (brosync-stopped-slave-handle-message byte))
-    (:rec-slave (brosync-rec-slave-handle-message byte))
-    (:play-slave (brosync-play-slave-handle-message byte)))
+    (:stopped-slave (brosync-stopped-slave-handle-message byte recv-time))
+    (:rec-slave (brosync-rec-slave-handle-message byte recv-time))
+    (:play-slave (brosync-play-slave-handle-message byte recv-time)))
   (format t "~%after recving byte, brosync state is: ~A" *brosync-state*))
 
-(defun brosync-empty-handle-message (message)
+(defun brosync-empty-handle-message (message recv-time)
   (case message
     (#.+brosync-toggle-message+ (setf *brosync-state* :rec-slave)
 				(setf *brosync-loop-origin*
-				      (get-internal-real-time)))
+				      recv-time))
     (#.+brosync-cancel-rec-message+ nil)
     (#.+brosync-play-stop-all-message+ nil)
     (#.+brosync-sync-message+)))
 
-(defun brosync-stopped-master-handle-message (message)
+(defun brosync-stopped-master-handle-message (message recv-time)
+  (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
     (#.+brosync-toggle-message+)
     (#.+brosync-sync-message+)))
 
-(defun brosync-rec-master-handle-message (message)
+(defun brosync-rec-master-handle-message (message recv-time)
+  (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
     (#.+brosync-toggle-message+)
     (#.+brosync-sync-message+)))
 
-(defun brosync-play-master-handle-message (message)
+(defun brosync-play-master-handle-message (message recv-time)
+  (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
@@ -97,59 +100,74 @@
     (#.+brosync-sync-message+)))
 
 (defvar *ticker-thread* nil)
-(defun brosync-stopped-slave-handle-message (message)
+(defun brosync-stopped-slave-handle-message (message recv-time)
   (setf *brosync-state* :empty)
   (ignore-errors (bt:destroy-thread *ticker-thread*))
-  (brosync-empty-handle-message message))
+  (brosync-empty-handle-message message recv-time))
 
-(defun brosync-rec-slave-handle-message (message)
+(defparameter *clock-subdivision* (* 16 3))
+
+(defun usleep (usecs)
+  (when (> usecs 0)
+    (sleep (/ usecs 1000000))))
+
+(defun brosync-rec-slave-handle-message (message recv-time)
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
-    (#.+brosync-toggle-message+ (setf *brosync-state* :play-slave)
-				(print
-				 (setf *brosync-loop-duration*
-				       (- (get-internal-real-time)
-					  *brosync-loop-origin*)))
-				(ignore-errors (bt:destroy-thread *ticker-thread*))
-				(setf *ticker-thread*
-				      (bt:make-thread
-				       (lambda ()
-					 (with-open-file (stream "/dev/ttyACM0"
-								 :direction :output
-								 :if-exists :overwrite
-								 :element-type '(unsigned-byte 8))
-					   
-					   (loop (serial-trigger-in stream 34 1)
-					      (sleep (/ *brosync-loop-duration*
-							32000))
-					      (serial-trigger-in stream 34 0)
-					      (sleep (/ *brosync-loop-duration*
-							32000))))))))
+    (#.+brosync-toggle-message+
+     (setf *brosync-state* :play-slave)
+     (print
+      (setf *brosync-loop-duration*
+	    (- recv-time
+	       *brosync-loop-origin*)))
+     (ignore-errors (bt:destroy-thread *ticker-thread*))
+     (setf *ticker-thread*
+	   (bt:make-thread
+	    (lambda ()
+	      (with-aleph-output-stream
+		(loop
+		   (loop for i below *clock-subdivision*
+		      do
+			;; (serial-trigger-param 0 1)
+			(serial-trigger-in 51 1)
+			(usleep (/ (- *brosync-loop-origin*
+				      (get-internal-utime))
+				   (- *clock-subdivision* i))))
+		   (incf *brosync-loop-origin* *brosync-loop-duration*)))))))
     (+brosync-sync-message+)))
 
-(defun brosync-play-slave-handle-message (message)
+(defun brosync-play-slave-handle-message (message recv-time)
+  (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
     (#.+brosync-toggle-message+ (setf *brosync-state* :stopped-slave))
     (#.+brosync-sync-message+)))
 
+(defconstant +sysex-begin+ #xF0)
+
 (defun brosync-listen ()
   (with-rang-input-stream
     (let ((state :open)
 	  (sysex-counter 0)
-	  (packet nil))
+	  (packet nil)
+	  (recv-time (get-internal-utime)))
       (loop 
 	 (let ((new-byte (read-byte *rang-input-stream*)))
 	   (case state
 	     (:open (case new-byte
-		      (240 (setf state :sysex)
-			   (setf sysex-counter 5)
-			   (push new-byte packet))))
+		      (#.+sysex-begin+ (setf state :sysex)
+				       (setf sysex-counter 5)
+				       (push new-byte packet)
+				       (setf recv-time (get-internal-utime)))))
 	     (:sysex (decf sysex-counter)
 		     (push new-byte packet)
 		     (when (= sysex-counter 0)
-		       (progn (brosync-handle-message new-byte)
+		       (progn (brosync-handle-message new-byte recv-time)
 			      (setf packet nil)
 			      (setf state :open))))))))))
+(defun get-internal-utime ()
+  (multiple-value-bind (s us) (sb-ext:get-time-of-day)
+    (+ (* 1000000 s)
+       us)))
