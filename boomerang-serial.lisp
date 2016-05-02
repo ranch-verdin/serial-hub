@@ -64,7 +64,7 @@
     (:stopped-slave (brosync-stopped-slave-handle-message byte recv-time))
     (:rec-slave (brosync-rec-slave-handle-message byte recv-time))
     (:play-slave (brosync-play-slave-handle-message byte recv-time)))
-  (format t "~%after recving byte, brosync state is: ~A" *brosync-state*))
+  (format t "~%after recving byte ~A, brosync state is: ~A" byte *brosync-state*))
 
 (defun brosync-empty-handle-message (message recv-time)
   (case message
@@ -100,49 +100,76 @@
     (#.+brosync-sync-message+)))
 
 (defvar *ticker-thread* nil)
-(defun brosync-stopped-slave-handle-message (message recv-time)
-  (setf *brosync-state* :empty)
-  (ignore-errors (bt:destroy-thread *ticker-thread*))
-  (brosync-empty-handle-message message recv-time))
 
-(defparameter *clock-subdivision* (* 16 3))
+(defun stop-ticker ()
+  (ignore-errors (bt:destroy-thread *ticker-thread*)))
+
+(defparameter *clock-subdivision* (* 16 2))
+
+(defun get-internal-utime ()
+  (multiple-value-bind (s us) (sb-ext:get-time-of-day)
+    (+ (* 1000000 s)
+       us)))
 
 (defun usleep (usecs)
   (when (> usecs 0)
     (sleep (/ usecs 1000000))))
 
-(defun brosync-rec-slave-handle-message (message recv-time)
+(defun aleph-tick-func ()
+  ;; (serial-trigger-param 0 1)
+  (serial-trigger-in 51 1)
+  ;; (print 'tick)
+  )
+
+(defun start-ticker (loop-origin loop-duration)
+  (stop-ticker)
+  (setf *ticker-thread*
+	(bt:make-thread
+	 (lambda ()
+	   (with-aleph-output-stream
+	     (loop
+		(incf loop-origin loop-duration)
+		(let ((div *clock-subdivision*))
+		  (loop for i below div
+		     do
+		       (aleph-tick-func)
+		       (usleep (/ (- loop-origin
+				     (get-internal-utime))
+				  (- div i)))))))))))
+
+(defun brosync-stopped-slave-handle-message (message recv-time)
+  (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
-    (#.+brosync-toggle-message+
-     (setf *brosync-state* :play-slave)
-     (print
-      (setf *brosync-loop-duration*
-	    (- recv-time
-	       *brosync-loop-origin*)))
-     (ignore-errors (bt:destroy-thread *ticker-thread*))
-     (setf *ticker-thread*
-	   (bt:make-thread
-	    (lambda ()
-	      (with-aleph-output-stream
-		(loop
-		   (loop for i below *clock-subdivision*
-		      do
-			;; (serial-trigger-param 0 1)
-			(serial-trigger-in 51 1)
-			(usleep (/ (- *brosync-loop-origin*
-				      (get-internal-utime))
-				   (- *clock-subdivision* i))))
-		   (incf *brosync-loop-origin* *brosync-loop-duration*)))))))
+    (#.+brosync-toggle-message+ (start-ticker (get-internal-utime)
+					      *brosync-loop-duration*)
+				(setf *brosync-state* :play-slave))
+    (#.+brosync-sync-message+ (start-ticker (get-internal-utime)
+					    *brosync-loop-duration*)
+			      (setf *brosync-state* :play-slave))))
+
+(defun brosync-rec-slave-handle-message (message recv-time)
+  (case message
+    (#.+brosync-cancel-rec-message+ (setf *brosync-state* :empty))
+    (#.+brosync-play-stop-all-message+)
+    (#.+brosync-toggle-message+ (setf *brosync-state* :play-slave)
+				(setf *brosync-loop-duration*
+				      (- recv-time
+					 *brosync-loop-origin*))
+				(start-ticker (+ *brosync-loop-origin*
+						 *brosync-loop-duration*)
+					      *brosync-loop-duration*))
     (+brosync-sync-message+)))
 
 (defun brosync-play-slave-handle-message (message recv-time)
   (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
-    (#.+brosync-play-stop-all-message+)
-    (#.+brosync-toggle-message+ (setf *brosync-state* :stopped-slave))
+    (#.+brosync-play-stop-all-message+ (setf *brosync-state* :stopped-slave)
+				       (stop-ticker))
+    (#.+brosync-toggle-message+ (setf *brosync-state* :stopped-slave)
+				(stop-ticker))
     (#.+brosync-sync-message+)))
 
 (defconstant +sysex-begin+ #xF0)
@@ -167,7 +194,4 @@
 		       (progn (brosync-handle-message new-byte recv-time)
 			      (setf packet nil)
 			      (setf state :open))))))))))
-(defun get-internal-utime ()
-  (multiple-value-bind (s us) (sb-ext:get-time-of-day)
-    (+ (* 1000000 s)
-       us)))
+
