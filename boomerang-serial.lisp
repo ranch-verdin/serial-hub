@@ -138,13 +138,12 @@
 				  (- div i)))))))))))
 
 (defun brosync-stopped-slave-handle-message (message recv-time)
-  (declare (ignore recv-time))
   (case message
     (#.+brosync-cancel-rec-message+)
     (#.+brosync-play-stop-all-message+)
-    (#.+brosync-toggle-message+ (start-ticker (get-internal-utime)
-					      *brosync-loop-duration*)
-				(setf *brosync-state* :play-slave))
+    (#.+brosync-toggle-message+ (setf *brosync-state* :rec-slave)
+				(setf *brosync-loop-origin*
+				      recv-time))
     (#.+brosync-sync-message+ (start-ticker (get-internal-utime)
 					    *brosync-loop-duration*)
 			      (setf *brosync-state* :play-slave))))
@@ -160,7 +159,9 @@
 				(start-ticker (+ *brosync-loop-origin*
 						 *brosync-loop-duration*)
 					      *brosync-loop-duration*))
-    (+brosync-sync-message+)))
+    (#.+brosync-sync-message+ (setf *brosync-state* :play-slave)
+			    (start-ticker *brosync-loop-origin*
+					  *brosync-loop-duration*))))
 
 (defun brosync-play-slave-handle-message (message recv-time)
   (declare (ignore recv-time))
