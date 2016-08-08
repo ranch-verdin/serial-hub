@@ -7,6 +7,7 @@
   :serial t
   :components ((:file "package")
 	       (:file "serial-hub-utils")
+	       (:file "midi-packetiser")
 	       (:file "aleph-serial")
 	       (:file "boomerang-serial")
 	       (:module "midi-glue"
@@ -16,5 +17,5 @@
 				     (:file "midi-glue")))
 	       (:file "monome-glue")
 	       (:file "serial-hub"))
-  :depends-on (:optima :cffi :iterate :external-program :calispel))
+  :depends-on (:optima :cffi :iterate :external-program :calispel :cl-monome))
 
