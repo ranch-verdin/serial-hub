@@ -73,7 +73,7 @@
 	   #b1111
 	   #b1000
 	   _)
-     (make-instance 'clock-message
+     (make-instance 'clock-tick-midi-message
 		    :raw-midi packet))
     ((list _
 	   #b1111
@@ -113,7 +113,7 @@
        ((list #b1100 _ (guard rest (= 1 (length rest))))
 	(make-instance 'program-change-midi-message
 		       :raw-midi packet))
-       ((list #b1110 _ (guard rest (= 1 (length rest))))
+       ((list #b1101 _ _)
 	(make-instance 'channel-pressure-midi-message
 		       :raw-midi packet))
        ((list #b1011 _ (guard rest (= 2 (length rest))))
@@ -121,18 +121,22 @@
 		       :raw-midi packet))))))
 
 (defun read-midi-message (midi-stream)
+  (declare (optimize (debug 3)))
   "reads midi-stream until a well-formed midi-message is received"
   (let ((state :waiting)
 	(packet nil))
+    (sleep 0.001)
+    ;; (format t "new packet:~%")
     (loop as next-byte = (read-byte midi-stream)
        do
+	 ;; (format t "~8b~%" next-byte)
 	 (case state
 	   (:waiting (if (= 1 (hi-bit next-byte))
 			 (progn (push next-byte packet)
 				(setf state :receiving))))
 	   (:receiving (if (= 0 (hi-bit next-byte))
 			   (push next-byte packet)
-			   (progn (break "bad midi received")
+			   (progn (warn "~%bad midi received:~% ~{~8b~%~}" (reverse packet))
 				  (setf packet (list next-byte))))))
 	 (when packet
 	   (let ((message (parse-packet (reverse packet))))

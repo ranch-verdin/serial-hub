@@ -1,4 +1,7 @@
-(in-package :serial-hub)
+(in-package :monome-glue)
+
+(eval-when (:compile-toplevel :load-toplevel)
+  (defvar *monome-dev* nil))
 
 (defun monome-led (x y brightness &optional (monome-dev *monome-dev*))
   (assert monome-dev)
@@ -6,9 +9,8 @@
   (assert (>= brightness 0))
   (monome-led-level-set monome-dev x y brightness))
 
-(defvar *monome-dev* nil)
 (defmacro with-open-monome ((&optional
-			     (monome-dev *monome-dev*)
+			     (monome-dev '*monome-dev*)
 			     (monome-dev-file "/dev/ttyUSB0"))
 			       &body body)
   `(let ((,monome-dev (monome-open ,monome-dev-file (cffi:null-pointer))))
@@ -79,3 +81,31 @@
 						  (random 16))))
       (monome-clear)
       (bt:destroy-thread bg))))
+
+(defvar *monome-reader-thread* nil)
+
+(defclass monome-button-event ()
+  ((x :initarg :x) (y :initarg :y)))
+(defclass monome-button-press (monome-button-event)
+  ())
+(defclass monome-button-release (monome-button-event)
+  ())
+
+(defun start-monome-reader ()
+  (assert (null *monome-dev*))
+  (assert (null *monome-reader-thread*))
+  (setq *monome-reader-thread*
+       	(bt:make-thread (lambda ()
+			  (run-monome-input-loop
+			   (lambda (x y)
+			     (! *reader-ochan*
+				(make-instance 'monome-button-press
+					       :x x :y y)))
+			   (lambda (x y)
+			     (! *reader-ochan*
+				(make-instance 'monome-button-release
+					       :x x :y y)))))
+			:name "monome reader thread")))
+(defun stop-monome-reader ()
+  (bt:destroy-thread *monome-reader-thread*)
+  (setf *monome-reader-thread* nil))

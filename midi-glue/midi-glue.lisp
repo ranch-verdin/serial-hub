@@ -15,7 +15,7 @@
     (assert (null val)))
   (drain-channel *clock-ochan*)
   (drain-channel *clock-ctrl-chan*)
-  (start-reader *clock-ctrl-chan* reader-map)
+  (start-midi-reader *clock-ctrl-chan*)
   (start-clock *clock-ctrl-chan* master-slave ppqn)
   (start-writer-thread))
 
@@ -27,7 +27,7 @@
 
 (defun stop-midi-glue ()
   (check-midi-glue)
-  (ignore-errors (stop-reader))
+  (ignore-errors (stop-midi-reader))
   (setf *reader-thread* nil)
   (ignore-errors (stop-writer-thread))
   (setf *writer-thread* nil)
