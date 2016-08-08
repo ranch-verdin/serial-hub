@@ -6,6 +6,7 @@
   :license "GPL v2"
   :serial t
   :components ((:file "package")
+	       (:file "serial-hub-utils")
 	       (:file "aleph-serial")
 	       (:file "boomerang-serial")
 	       (:file "serial-hub"))

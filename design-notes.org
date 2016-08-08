@@ -1,0 +1,20 @@
+* Alsa Rawmidi
+In order to read/write rawmidi to/from alsa seq, we can use the raw
+midi built into alsa:
+
+sudo modprobe snd-rawmidi
+sudo modprobe snd-virmidi
+
+Now 4 new midi devices appear on the filesystem "/dev/snd/midiC3D0"
+and these also appear in the alsa sequencer ports list so now you can
+read/write raw midi and pipe it into the alsa sequencer...
+
+* TODO
+* Midi state machine decoder: to begin with just
+** noteon
+** noteoff
+** cc
+** midi clock
+*** 
+** boomerang sysex
+* 

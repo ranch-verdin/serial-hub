@@ -1,0 +1,5 @@
+(in-package :serial-hub-utils)
+(defun get-internal-utime ()
+  (multiple-value-bind (s us) (sb-ext:get-time-of-day)
+    (+ (* 1000000 s)
+       us)))
