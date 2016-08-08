@@ -9,7 +9,12 @@
 	       (:file "serial-hub-utils")
 	       (:file "aleph-serial")
 	       (:file "boomerang-serial")
+	       (:module "midi-glue"
+			:components ((:file "reader")
+				     (:file "writer")
+				     (:file "clock")
+				     (:file "midi-glue")))
 	       (:file "monome-glue")
 	       (:file "serial-hub"))
-  :depends-on (:optima :cffi :iterate :external-program))
+  :depends-on (:optima :cffi :iterate :external-program :calispel))
 

@@ -18,6 +18,21 @@
 	   #:lo-nibble #:hi-bit
 	   #:pack-nibbles #:parse-packet
 	   #:read-midi-message))
+
+(defpackage :midi-glue
+  (:use #:cl #:cffi #:midi-packetiser #:optima #:optima.extra #:calispel)
+  (:export #:*clock-ochan* #:*clock-ctrl-chan*
+           #:*reader-ichan* #:*reader-ochan*
+           #:set-master-bpm #:inspect-midihelper
+           #:start-midihelper #:stop-midihelper
+           #:check-midihelper #:if-gesture
+           #:if-clock #:macromatch
+           #:drain-channel #:send-event
+           #:ev-noteon #:ev-noteoff
+           #:ev-tick #:ev-microtick
+           #:ev-start #:ev-stop
+           #:ev-continue #:ev-songpos))
+
 (defpackage #:serial-hub
   (:use #:cl #:cl-monome #:cffi))
 
