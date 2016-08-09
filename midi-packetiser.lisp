@@ -79,19 +79,19 @@
 	   #b1111
 	   #b1010
 	   _)
-     (make-instance 'start-message
+     (make-instance 'start-midi-message
 		    :raw-midi packet))
     ((list _
 	   #b1111
 	   #b1011
 	   _)
-     (make-instance 'continue-message
+     (make-instance 'continue-midi-message
 		    :raw-midi packet))
     ((list _
 	   #b1111
 	   #b1100
 	   _)
-     (make-instance 'stop-message
+     (make-instance 'stop-midi-message
 		    :raw-midi packet))
     ((list 1 hi lo (guard rest
 			  (every (lambda (x)

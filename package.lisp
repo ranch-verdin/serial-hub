@@ -25,7 +25,7 @@
 	   ;; #:hi-nibble
 	   ;; #:lo-nibble #:hi-bit
 	   ;; #:pack-nibbles #:parse-packet
-	   #:read-midi-message))
+	   #:read-midi-message #:with-midi-in))
 
 (defpackage :midi-glue
   (:use #:cl #:cffi #:midi-packetiser #:optima #:optima.extra #:calispel

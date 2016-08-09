@@ -30,10 +30,7 @@
                           (sleep 0.1)
                           (unwind-protect
                                (handler-case
-                                   (with-open-file (midi-stream "/dev/snd/midiC3D0"
-								:direction :io
-								:if-exists :overwrite
-								:element-type  '(unsigned-byte 8))
+                                   (with-midi-in (midi-stream "/dev/snd/midiC3D0")
                                      (loop
                                         (restart-case
                                             (midi-input midi-stream
