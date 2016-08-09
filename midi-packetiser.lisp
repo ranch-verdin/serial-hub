@@ -113,31 +113,44 @@
        ((list #b1100 _ (guard rest (= 1 (length rest))))
 	(make-instance 'program-change-midi-message
 		       :raw-midi packet))
-       ((list #b1101 _ _)
+       ((list #b1101 _ (guard rest (= 1 (length rest))))
 	(make-instance 'channel-pressure-midi-message
 		       :raw-midi packet))
        ((list #b1011 _ (guard rest (= 2 (length rest))))
 	(make-instance 'pitch-bend-midi-message
 		       :raw-midi packet))))))
 
+(defclass midi-stream ()
+  ((byte-stream
+    :accessor byte-stream
+    :initarg :byte-stream)
+   (last-header
+    :accessor last-header
+    :initform nil)))
+
+(defun read-midi-byte (midi-stream)
+  (read-byte (byte-stream midi-stream)))
+
+(defmacro with-midi-in ((midi-stream device-filename) &body body)
+  (let ((byte-stream (gensym "byte-stream")))
+    `(with-open-file (,byte-stream ,device-filename
+				   :direction :io
+				   :if-exists :overwrite
+				   :element-type  '(unsigned-byte 8))
+       (let ((,midi-stream (make-instance 'midi-stream
+					  :byte-stream ,byte-stream)))
+	 ,@body))))
+
 (defun read-midi-message (midi-stream)
   (declare (optimize (debug 3)))
   "reads midi-stream until a well-formed midi-message is received"
-  (let ((state :waiting)
-	(packet nil))
-    (sleep 0.001)
-    ;; (format t "new packet:~%")
-    (loop as next-byte = (read-byte midi-stream)
+  (let ((packet (list (last-header midi-stream))))
+    (loop as next-byte = (read-midi-byte midi-stream)
        do
-	 ;; (format t "~8b~%" next-byte)
-	 (case state
-	   (:waiting (if (= 1 (hi-bit next-byte))
-			 (progn (push next-byte packet)
-				(setf state :receiving))))
-	   (:receiving (if (= 0 (hi-bit next-byte))
-			   (push next-byte packet)
-			   (progn (warn "~%bad midi received:~% ~{~8b~%~}" (reverse packet))
-				  (setf packet (list next-byte))))))
+	 (if (= 1 (hi-bit next-byte))
+	     (progn (setf packet (list next-byte))
+		    (setf (last-header midi-stream) next-byte))
+	     (push next-byte packet))
 	 (when packet
 	   (let ((message (parse-packet (reverse packet))))
 	     (when message
