@@ -96,16 +96,17 @@
   (assert (null *monome-reader-thread*))
   (setq *monome-reader-thread*
        	(bt:make-thread (lambda ()
-			  (run-monome-input-loop
-			   (lambda (x y)
-			     (! *reader-ochan*
-				(make-instance 'monome-button-press
-					       :x x :y y)))
-			   (lambda (x y)
-			     (! *reader-ochan*
-				(make-instance 'monome-button-release
-					       :x x :y y)))))
+			  (unwind-protect
+			       (run-monome-input-loop
+				(lambda (x y)
+				  (! *reader-ochan*
+				     (make-instance 'monome-button-press
+						    :x x :y y)))
+				(lambda (x y)
+				  (! *reader-ochan*
+				     (make-instance 'monome-button-release
+						    :x x :y y))))
+			    (setf *monome-reader-thread* nil)))
 			:name "monome reader thread")))
 (defun stop-monome-reader ()
-  (bt:destroy-thread *monome-reader-thread*)
-  (setf *monome-reader-thread* nil))
+  (bt:destroy-thread *monome-reader-thread*))
