@@ -33,18 +33,22 @@
   (:export #:*clock-ochan* #:*clock-ctrl-chan*
            #:*reader-ichan* #:*reader-ochan*
            #:set-master-bpm #:inspect-midihelper
-           #:start-midi-glue #:stop-midi-glue
-           #:check-midi-glue #:send-event
+           ;; #:start-midi-glue #:stop-midi-glue
+           ;; #:check-midi-glue
+	   #:start-midi-reader #:stop-midi-reader
+	   #:send-event
            #:ev-tick #:ev-microtick))
 
 (defpackage #:monome-glue
   (:use #:cl #:cl-monome #:cffi #:serial-hub-utils #:calispel)
-  (:export #:start-monome-reader
+  (:export #:start-monome-reader #:monome-button-event
 	   #:monome-button-press #:monome-button-release
-	   #:*monome-reader-thread* #:monome-led #:with-open-monome
-	   #:*button-down-fn* #:*button-up-fn* #:monome-clear
-	   #:run-monome-input-loop))
+	   #:*monome-reader-thread* #:monome-led #:monome-clear
+	   #:start-monome-reader #:stop-monome-reader #:x #:y))
 
 (defpackage #:serial-hub
-  (:use #:cl #:cl-monome #:cffi))
+  (:use #:cl #:cffi #:monome-glue #:midi-glue #:calispel)
+  (:export #:*reader-ochan*))
 
+(defpackage #:cntrl
+  (:use #:cl #:serial-hub #:calispel #:monome-glue))

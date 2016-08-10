@@ -16,6 +16,11 @@
 				     (:file "clock")
 				     (:file "midi-glue")))
 	       (:file "monome-glue")
-	       (:file "serial-hub"))
+	       (:file "serial-hub")
+	       (:module "cntrl"
+			:components (;; (:file "sections-phrases")
+				     ;; (:file "layout")
+				     ;; (:file "toplevel")
+				     (:file "cntrl"))))
   :depends-on (:optima :cffi :iterate :external-program :calispel :cl-monome))
 
