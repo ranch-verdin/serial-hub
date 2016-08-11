@@ -18,13 +18,14 @@
 	   #:sysex-message
 	   #:sysex-dump #:boomerang-sysex-message
 	   ;; Below are symbols related to midi clock
-	   #:midi-timing-message #:clock-message
-	   #:start-message #:continue-message
-	   #:stop-message #:song-position-pointer
+	   #:midi-timing-message #:clock-tick-midi-message
+	   #:start-midi-message #:continue-midi-message
+	   #:stop-midi-message #:song-position-pointer-midi-message
 	   
 	   ;; #:hi-nibble
 	   ;; #:lo-nibble #:hi-bit
 	   ;; #:pack-nibbles #:parse-packet
+	   #:write-midi-message #:with-midi-out
 	   #:read-midi-message #:with-midi-in))
 
 (defpackage :midi-glue
@@ -51,4 +52,4 @@
   (:export #:*reader-ochan*))
 
 (defpackage #:cntrl
-  (:use #:cl #:serial-hub #:calispel #:monome-glue))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:midi-packetiser))

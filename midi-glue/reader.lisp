@@ -23,14 +23,14 @@
 (define-condition stop-thread (error)
   ())
 
-(defun start-midi-reader (&optional (clock-ichan))
+(defun start-midi-reader (&optional (clock-ichan *clock-ctrl-chan*))
   (assert (null *reader-thread*))
   (setf *reader-thread*
         (bt:make-thread (lambda ()
                           (sleep 0.1)
                           (unwind-protect
                                (handler-case
-                                   (with-midi-in (midi-stream "/dev/snd/midiC3D0")
+                                   (with-midi-in (midi-stream "/dev/snd/midiC5D0")
                                      (loop
                                         (restart-case
                                             (midi-input midi-stream

@@ -156,6 +156,23 @@
 	     (when message
 	       (return-from read-midi-message
 		 message)))))))
+
+(defmacro with-midi-out ((midi-stream device-filename) &body body)
+  (let ((byte-stream (gensym "byte-stream")))
+    `(with-open-file (,byte-stream ,device-filename
+				   :direction :output
+				   :if-exists :overwrite
+				   :element-type '(unsigned-byte 8))
+       (let ((,midi-stream (make-instance 'midi-stream
+					  :byte-stream ,byte-stream)))
+	 ,@body))))
+
+(defun write-midi-byte (byte midi-stream)
+  (write-byte byte (byte-stream midi-stream)))
+
+(defun write-midi-message (message midi-stream)
+  (loop for byte in (slot-value message 'raw-midi)
+     do (write-midi-byte byte midi-stream)))
 	       
 #+nil
 (with-open-file (stream "/dev/snd/midiC3D0"

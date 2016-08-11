@@ -2,6 +2,11 @@
 
 (defparameter *current-section* :a)
 
+(defgeneric handle-event (ev))
+
+(defmethod handle-event ((ev t))
+  (warn "unknown event received: ~a" ev))
+
 (defun section-a (up-or-down)
   (format t "section-a ~a~%" up-or-down)
   (case up-or-down
@@ -37,14 +42,39 @@
 
 (defvar *ticker-pos* 0)
 
+(defvar *ticker-timebase* 4)
+
+(defvar *master-timebase* 24)
+
 (defun ticker-strip (chan)
+  (declare (ignore chan))
   (lambda (up-or-down)
     (format t "ticker-strip ~a~%" up-or-down)))
+
+(defun inc-ticker-quantised ()
+  (setq *ticker-pos*
+	(rem (+ *ticker-pos* (/ *master-timebase* *ticker-timebase*))
+	     (* (/ *master-timebase* *ticker-timebase*)
+		16))))
 
 (defun inc-ticker ()
   (setq *ticker-pos*
 	(rem (+ *ticker-pos* 1)
-	     16)))
+	     (* (/ *master-timebase* *ticker-timebase*)
+		16)))
+  (multiple-value-bind (int frac) (floor *ticker-pos*
+					 (/ *master-timebase* *ticker-timebase*))
+    (when (= 0 frac)
+      (draw-grid)
+      (with-midi-out (ms "/dev/snd/midiC5D0")
+	(loop for trig in (read-step-sequencer-column int)
+	   for message in *step-sequencer-triggers*
+	   when trig
+	   do (write-midi-message message ms))))))
+
+(defmethod handle-event ((mess clock-tick-midi-message))
+  (declare (ignore mess))
+  (inc-ticker))
 
 (defparameter *ticker-strip-inputs*
   (loop for x below 16 collect (ticker-strip x)))
@@ -85,8 +115,15 @@
 				 collect (loop for x below 16
 					    collect nil)))
 
-;; (defun *step-sequencer-triggers*
-;;     (list (make-instance 'midi-packetiser:note-on-midi-message
+(defparameter *step-sequencer-triggers*
+  (list (make-instance 'note-on-midi-message
+		       :raw-midi '(144 35 111)) ;; kick
+	(make-instance 'note-on-midi-message
+		       :raw-midi '(144 38 68)) ;; snare
+	(make-instance 'note-on-midi-message
+		       :raw-midi '(144 42 53)) ;; closed hh
+	(make-instance 'note-off-midi-message
+		       :raw-midi '(144 46 81))))
 
 (defun read-step-sequencer-column (x)
   (mapcar (lambda (row)
@@ -120,8 +157,6 @@
 	  (list *ticker-strip-inputs*)
 	  *grid-section*))
 
-(defgeneric handle-event (ev))
-
 (defmethod handle-event ((event monome-button-event))
   (let ((x (slot-value event 'x))
 	(y (slot-value event 'y)))
@@ -136,7 +171,9 @@
 
 (defun draw-grid ()
   (monome-clear)
-  (monome-led *ticker-pos* 3 15)
+  (monome-led (floor (/ (* *ticker-pos* *ticker-timebase*)
+			*master-timebase*))
+	      3 15)
   (draw-step-sequencer))
 
 (defvar *cntrl-thread* nil)
@@ -145,7 +182,9 @@
   (assert (null *cntrl-thread*))
   (setf *cntrl-thread*
 	(bt:make-thread (lambda ()
-			  (loop (handle-event (? *reader-ochan*))))
+			  (unwind-protect
+			       (loop (handle-event (? *reader-ochan*)))
+			    (setf *cntrl-thread* nil)))
 			:name "cntrl-app")))
 
 (defun stop-cntrl-app ()
