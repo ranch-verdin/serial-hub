@@ -1,5 +1,8 @@
 ;;;; package.lisp
 
+(defpackage #:aleph-serial
+  (:use #:cl #:optima #:cffi #:iterate))
+
 (defpackage #:serial-hub-utils
   (:use #:cl #:calispel)
   (:export #:get-internal-utime #:make-nonblock-buf-channel
@@ -25,10 +28,10 @@
 	   ;; #:hi-nibble
 	   ;; #:lo-nibble #:hi-bit
 	   ;; #:pack-nibbles #:parse-packet
-	   #:write-midi-message #:with-midi-out
-	   #:read-midi-message #:with-midi-in))
+	   #:write-midi-message #:with-midi-out #:*default-midi-out-stream*
+	   #:read-midi-message #:with-midi-in #:*default-midi-in-stream*))
 
-(defpackage :midi-glue
+(defpackage #:midi-glue
   (:use #:cl #:cffi #:midi-packetiser #:optima #:optima.extra #:calispel
 	#:serial-hub-utils)
   (:export #:*clock-ochan* #:*clock-ctrl-chan*
@@ -42,14 +45,11 @@
 
 (defpackage #:monome-glue
   (:use #:cl #:cl-monome #:cffi #:serial-hub-utils #:calispel)
-  (:export #:start-monome-reader #:monome-button-event
-	   #:monome-button-press #:monome-button-release
-	   #:*monome-reader-thread* #:monome-led #:monome-clear
-	   #:start-monome-reader #:stop-monome-reader #:x #:y))
+  (:export #:start-monome-reader  #:stop-monome-reader))
 
 (defpackage #:serial-hub
   (:use #:cl #:cffi #:monome-glue #:midi-glue #:calispel)
   (:export #:*reader-ochan*))
 
 (defpackage #:cntrl
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:midi-packetiser))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser))

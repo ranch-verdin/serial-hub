@@ -131,6 +131,8 @@
 (defun read-midi-byte (midi-stream)
   (read-byte (byte-stream midi-stream)))
 
+(defvar *default-midi-in-stream*)
+
 (defmacro with-midi-in ((midi-stream device-filename) &body body)
   (let ((byte-stream (gensym "byte-stream")))
     `(with-open-file (,byte-stream ,device-filename
@@ -141,7 +143,7 @@
 					  :byte-stream ,byte-stream)))
 	 ,@body))))
 
-(defun read-midi-message (midi-stream)
+(defun read-midi-message (&optional (midi-stream *default-midi-in-stream*))
   (declare (optimize (debug 3)))
   "reads midi-stream until a well-formed midi-message is received"
   (let ((packet (list (last-header midi-stream))))
@@ -170,10 +172,13 @@
 (defun write-midi-byte (byte midi-stream)
   (write-byte byte (byte-stream midi-stream)))
 
-(defun write-midi-message (message midi-stream)
+(defvar *default-midi-out-stream*)
+
+(defun write-midi-message (message &optional (midi-stream *default-midi-out-stream*))
   (loop for byte in (slot-value message 'raw-midi)
-     do (write-midi-byte byte midi-stream)))
-	       
+     do (write-midi-byte byte midi-stream)
+     (force-output (byte-stream midi-stream))))
+
 #+nil
 (with-open-file (stream "/dev/snd/midiC3D0"
 			:direction :io

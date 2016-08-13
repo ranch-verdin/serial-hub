@@ -66,11 +66,11 @@
 					 (/ *master-timebase* *ticker-timebase*))
     (when (= 0 frac)
       (draw-grid)
-      (with-midi-out (ms "/dev/snd/midiC5D0")
-	(loop for trig in (read-step-sequencer-column int)
-	   for message in *step-sequencer-triggers*
-	   when trig
-	   do (write-midi-message message ms))))))
+      ;; (with-midi-out (ms "/dev/snd/midiC1D0")
+      (loop for trig in (read-step-sequencer-column int)
+	 for message in *step-sequencer-triggers*
+	 when trig
+	 do (write-midi-message message)))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
   (declare (ignore mess))
@@ -115,7 +115,7 @@
 				 collect (loop for x below 16
 					    collect nil)))
 
-(defparameter *step-sequencer-triggers*
+(defvar *step-sequencer-triggers*
   (list (make-instance 'note-on-midi-message
 		       :raw-midi '(144 35 111)) ;; kick
 	(make-instance 'note-on-midi-message
@@ -145,7 +145,7 @@
        (loop for x below 16
 	  as cell = (nth x (nth y *step-sequencer-grid*))
 	  when cell
-	  do (monome-led x (+ y 4) 15))))
+	  do (monome-set-led-intensity x (+ y 4) 15))))
 
 (defparameter *grid-section*
   (loop for y below 4
@@ -170,11 +170,11 @@
 	       (monome-button-release :release)))))
 
 (defun draw-grid ()
-  (monome-clear)
-  (monome-led (floor (/ (* *ticker-pos* *ticker-timebase*)
-			*master-timebase*))
-	      3 15)
-  (draw-step-sequencer))
+  (monome-set-all 0)
+  (draw-step-sequencer)
+  (monome-set-led-intensity (floor (/ (* *ticker-pos* *ticker-timebase*)
+				      *master-timebase*))
+			    3 15))
 
 (defvar *cntrl-thread* nil)
 
@@ -182,9 +182,11 @@
   (assert (null *cntrl-thread*))
   (setf *cntrl-thread*
 	(bt:make-thread (lambda ()
-			  (unwind-protect
-			       (loop (handle-event (? *reader-ochan*)))
-			    (setf *cntrl-thread* nil)))
+			  (with-midi-out (*default-midi-out-stream* "/dev/snd/midiC1D0")
+			    (with-monome-output-stream ()
+			      (unwind-protect
+				   (loop (handle-event (? *reader-ochan*)))
+				(setf *cntrl-thread* nil)))))
 			:name "cntrl-app")))
 
 (defun stop-cntrl-app ()

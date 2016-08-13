@@ -1,6 +1,5 @@
-(in-package :cl-user)
-(eval-when (:compile-toplevel :load-toplevel)
-  (use-package '(:optima :cffi :iterate)))
+(in-package :aleph-serial)
+
 (defparameter *start-flag* #x12)
 (defparameter *end-flag* #x13)
 (defparameter *dle* #x7D)
