@@ -46,22 +46,55 @@
 
 (defvar *master-timebase* 24)
 
+(defun tick-length ()
+  (/ *master-timebase* *ticker-timebase*))
+
+(defvar *ticker-beatsnap* t)
+
+(defvar *quantised-pattern-duration* 16)
+
+;; if we hold and press left-most, then a button in middle,
+;; the pattern length can be changed
+(defvar *setting-pattern-length* nil)
+
 (defun ticker-strip (chan)
-  (declare (ignore chan))
   (lambda (up-or-down)
-    (format t "ticker-strip ~a~%" up-or-down)))
+    (case up-or-down
+      (:press (if (= chan 0)
+		  (setf *setting-pattern-length* t)
+		  (if *setting-pattern-length*
+		      (progn (setf *quantised-pattern-duration* (+ chan 1))
+			     (setf *setting-pattern-length* nil))
+		      (scrub-to-quantised-point chan))))
+      (:release (when (= chan 0)
+		  (when *setting-pattern-length*
+		    (setf *setting-pattern-length* nil)
+		    (scrub-to-quantised-point chan)))))))
+
+(defun scrub-to-quantised-point (chan)
+  (let ((scrub-precision (if *ticker-beatsnap*
+			     *master-timebase*
+			     (tick-length))))
+    (setf *ticker-pos*
+	  (nth-value 1 (floor (+ (* *master-timebase*
+				    (round (- (* chan (tick-length))
+					      *ticker-pos*)
+					   *master-timebase*))
+				 *ticker-pos*)
+			      (* *quantised-pattern-duration*
+				 (tick-length)))))))
 
 (defun inc-ticker-quantised ()
   (setq *ticker-pos*
 	(rem (+ *ticker-pos* (/ *master-timebase* *ticker-timebase*))
 	     (* (/ *master-timebase* *ticker-timebase*)
-		16))))
+		*quantised-pattern-duration*))))
 
 (defun inc-ticker ()
   (setq *ticker-pos*
 	(rem (+ *ticker-pos* 1)
 	     (* (/ *master-timebase* *ticker-timebase*)
-		16)))
+		*quantised-pattern-duration*)))
   (multiple-value-bind (int frac) (floor *ticker-pos*
 					 (/ *master-timebase* *ticker-timebase*))
     (when (= 0 frac)
@@ -117,13 +150,14 @@
 
 (defvar *step-sequencer-triggers*
   (list (make-instance 'note-on-midi-message
-		       :raw-midi '(144 35 111)) ;; kick
+		       :raw-midi '(144 42 53)) ;; closed hh
+	(make-instance 'note-off-midi-message
+		       :raw-midi '(144 46 81))
 	(make-instance 'note-on-midi-message
 		       :raw-midi '(144 38 68)) ;; snare
 	(make-instance 'note-on-midi-message
-		       :raw-midi '(144 42 53)) ;; closed hh
-	(make-instance 'note-off-midi-message
-		       :raw-midi '(144 46 81))))
+		       :raw-midi '(144 35 111)) ;; kick
+	))
 
 (defun read-step-sequencer-column (x)
   (mapcar (lambda (row)
@@ -163,8 +197,7 @@
     (funcall (or (nth x (nth y *whole-grid*))
 		 (lambda (foo)
 		   (when (eq foo :press)
-		     (inc-ticker)
-		     (draw-grid))))
+		     (inc-ticker))))
 	     (typecase event
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
