@@ -1,6 +1,7 @@
-(in-package :cl-user)
-(defun midi-sniff ()
-  (with-open-file (stream "/dev/midi"
+(in-package :boomerang)
+
+(defun midi-sniff (&optional (midi-port "/dev/midi"))
+  (with-open-file (stream midi-port
 			  :direction :io
 			  :if-exists :overwrite
 			  :element-type '(unsigned-byte 8))
@@ -25,20 +26,21 @@
 
 (defmacro with-rang-input-stream (&body body)
   `(with-open-file (*rang-input-stream* *midi-dev*
-			   :direction :io
-			   :if-exists :overwrite
-			   :element-type '(unsigned-byte 8))
+					:direction :io
+					:if-exists :overwrite
+					:element-type '(unsigned-byte 8))
      ,@body))
 
 (defun send-brosync-cmd (byte)
-  (write-bytes (print `(240 0 31 127 15 ,byte))
+  (write-bytes `(240 0 31 127 15 ,byte)
 	       *rang-output-stream*))
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defconstant +brosync-sync-message+ 19)
   (defparameter +brosync-toggle-message+ 18)
   (defparameter +brosync-play-stop-all-message+ 8)
-  (defparameter +brosync-cancel-rec-message+ 3))
+  (defparameter +brosync-cancel-rec-message+ 3)
+  (defconstant +sysex-begin+ #xF0))
 
 (defun send-brosync-sync ()
   (send-brosync-cmd +brosync-sync-message+))
@@ -106,11 +108,6 @@
 
 (defparameter *clock-subdivision* (* 16 2))
 
-(defun get-internal-utime ()
-  (multiple-value-bind (s us) (sb-ext:get-time-of-day)
-    (+ (* 1000000 s)
-       us)))
-
 (defun usleep (usecs)
   (when (> usecs 0)
     (sleep (/ usecs 1000000))))
@@ -160,8 +157,8 @@
 						 *brosync-loop-duration*)
 					      *brosync-loop-duration*))
     (#.+brosync-sync-message+ (setf *brosync-state* :play-slave)
-			    (start-ticker *brosync-loop-origin*
-					  *brosync-loop-duration*))))
+			      (start-ticker *brosync-loop-origin*
+					    *brosync-loop-duration*))))
 
 (defun brosync-play-slave-handle-message (message recv-time)
   (declare (ignore recv-time))
@@ -172,8 +169,6 @@
     (#.+brosync-toggle-message+ (setf *brosync-state* :stopped-slave)
 				(stop-ticker))
     (#.+brosync-sync-message+)))
-
-(defconstant +sysex-begin+ #xF0)
 
 (defun brosync-listen ()
   (with-rang-input-stream

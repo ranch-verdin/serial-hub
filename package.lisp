@@ -1,12 +1,13 @@
 ;;;; package.lisp
 
-(defpackage #:aleph-serial
-  (:use #:cl #:optima #:cffi #:iterate))
-
 (defpackage #:serial-hub-utils
   (:use #:cl #:calispel)
   (:export #:get-internal-utime #:make-nonblock-buf-channel
 	   #:drain-channel #:*reader-ochan*))
+
+(defpackage #:aleph-serial
+  (:use #:cl #:optima #:cffi #:iterate)
+  (:export #:serial-trigger-in #:with-aleph-output-stream))
 
 (defpackage #:midi-packetiser
   (:use #:cl #:optima #:serial-hub-utils)
@@ -30,6 +31,9 @@
 	   ;; #:pack-nibbles #:parse-packet
 	   #:write-midi-message #:with-midi-out #:*default-midi-out-stream*
 	   #:read-midi-message #:with-midi-in #:*default-midi-in-stream*))
+
+(defpackage #:boomerang
+  (:use #:cl #:aleph-serial #:serial-hub-utils))
 
 (defpackage #:midi-glue
   (:use #:cl #:cffi #:midi-packetiser #:optima #:optima.extra #:calispel
