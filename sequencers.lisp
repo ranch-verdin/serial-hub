@@ -74,7 +74,7 @@
 			(beat-divisor seq)
 			(swing-ratio seq))))
     (when grid-crossing
-      (loop for y below (grid-length seq)
+      (loop for y below (cadr (array-dimensions (grid seq)))
 	 do (handle-gesture seq
 			    (resolve-gesture seq
 					     y

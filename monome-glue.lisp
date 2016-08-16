@@ -12,4 +12,5 @@
 				     (monome-receive-message)))))
 			:name "monome reader thread")))
 (defun stop-monome-reader ()
-  (bt:destroy-thread *monome-reader-thread*))
+  (bt:destroy-thread *monome-reader-thread*)
+  (setf *monome-reader-thread* nil))

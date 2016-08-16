@@ -62,7 +62,7 @@
 	   #:ticks-index #:swing-ratio
 	   #:beat-divisor #:gesture-map
 	   #:grid #:grid-length
-	   #:sequence-tick-length
+	   #:sequence-tick-length #:handle-gestures
 	   #:record-gesture #:do-tick
 	   #:grid-set-element #:grid-set-column
 
