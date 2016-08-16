@@ -1,6 +1,41 @@
-(in-package :cntrl)
+(in-package :sguenz)
 
-(defparameter *current-section* :a)
+(defun default-step-sequencer-triggers ()
+  (list t (list (make-instance 'note-on-midi-message
+			       :raw-midi '(144 42 53)) ;; closed hh
+		(make-instance 'note-off-midi-message
+			       :raw-midi '(144 46 81))
+		(make-instance 'note-on-midi-message
+			       :raw-midi '(144 38 68)) ;; snare
+		(make-instance 'note-on-midi-message
+			       :raw-midi '(144 35 111))) ;; kick
+	:emph (list (make-instance 'note-on-midi-message
+				   :raw-midi '(144 42 53)) ;; closed hh
+		    (make-instance 'note-off-midi-message
+				   :raw-midi '(144 46 81))
+		    (make-instance 'note-on-midi-message
+				   :raw-midi '(144 38 68)) ;; snare
+		    (make-instance 'note-on-midi-message
+				   :raw-midi '(144 36 111))) ;; kick
+	))
+
+(defclass section ()
+  ((grid-seq :initform (make-grid-sequence 16 4
+					   (default-step-sequencer-triggers)
+					   :beat-divisor 4
+					   :swing 0.6))
+   (free-seq1 :initform (make-instance 'free-sequence))
+   (free-seq2 :initform (make-instance 'free-sequence))
+   (free-seq3 :initform (make-instance 'free-sequence))))
+
+(defun new-section ()
+  (make-instance 'section))
+
+(defparameter *sguenz-sections* (loop for i below 3 collect (new-section)))
+
+(defparameter *current-section* (car *sguenz-sections*))
+
+(defparameter *active-phrase* 0)
 
 (defgeneric handle-event (ev))
 
@@ -9,53 +44,50 @@
 
 (defun section-a (up-or-down)
   (format t "section-a ~a~%" up-or-down)
-  (case up-or-down
-    (setf *current-section* :a)))
-(defun section-a-phrase (phrase-idx)
-  (lambda (up-or-down)
-    (format t "section-a-phrase ~a ~a~%" phrase-idx up-or-down)))
+  (setf *current-section* (car *sguenz-sections*)))
 
 (defun section-b (up-or-down)
   (format t "section-b ~a~%" up-or-down)
-  (setf *current-section* :b))
-(defun section-b-phrase (phrase-idx)
-  (lambda (up-or-down)
-    (format t "section-b-phrase ~a ~a~%" phrase-idx up-or-down)))
+  (setf *current-section* (cadr *sguenz-sections*)))
 
 (defun section-c (up-or-down)
   (format t "section-c ~a~%" up-or-down)
-  (setf *current-section* :c))
-(defun section-c-phrase (phrase-idx)
+  (setf *current-section* (caddr *sguenz-sections*)))
+
+(defun phrase-selector (phrase-idx)
   (lambda (up-or-down)
-    (format t "section-c-phrase ~a ~a~%" phrase-idx up-or-down)))
+    (format t "section-c-phrase ~a ~a~%" phrase-idx up-or-down)
+    (when (eq :pressed up-or-down)
+      (setf *active-phrase* phrase-idx))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
-	      (mapcar #'section-a-phrase
+	      (mapcar #'phrase-selector
 		      '(1 2 3 )))
 	(cons #'section-b
-	      (mapcar #'section-b-phrase
+	      (mapcar #'phrase-selector
 		      '(1 2 3 )))
 	(cons #'section-c
-	      (mapcar #'section-c-phrase
+	      (mapcar #'phrase-selector
 		      '(1 2 3 )))))
-
-(defvar *ticker-pos* 0)
-
-(defvar *ticker-timebase* 4)
-
-(defvar *master-timebase* 24)
-
-(defun tick-length ()
-  (/ *master-timebase* *ticker-timebase*))
-
-(defvar *ticker-beatsnap* t)
-
-(defvar *quantised-pattern-duration* 16)
 
 ;; if we hold and press left-most, then a button in middle,
 ;; the pattern length can be changed
 (defvar *setting-pattern-length* nil)
+
+(defun get-active-phrase ()
+  (cond ((= *active-phrase* 0)
+	 (slot-value *current-section* 'grid-seq))
+	((= *active-phrase* 1)
+	 (slot-value *current-section* 'free-seq1))
+	((= *active-phrase* 2)
+	 (slot-value *current-section* 'free-seq2))
+	((= *active-phrase* 3)
+	 (slot-value *current-section* 'free-seq3))))
+
+(defun set-quantised-pattern-duration (dur)
+  (setf (grid-length (get-active-phrase))
+	dur))
 
 (defun ticker-strip (chan)
   (lambda (up-or-down)
@@ -63,7 +95,7 @@
       (:press (if (= chan 0)
 		  (setf *setting-pattern-length* t)
 		  (if *setting-pattern-length*
-		      (progn (setf *quantised-pattern-duration* (+ chan 1))
+		      (progn (set-quantised-pattern-duration (+ chan 1))
 			     (setf *setting-pattern-length* nil))
 		      (scrub-to-quantised-point chan))))
       (:release (when (= chan 0)
@@ -72,38 +104,16 @@
 		    (scrub-to-quantised-point chan)))))))
 
 (defun scrub-to-quantised-point (chan)
-  (let ((scrub-precision (if *ticker-beatsnap*
-			     *master-timebase*
-			     (tick-length))))
-    (setf *ticker-pos*
-	  (nth-value 1 (floor (+ (* *master-timebase*
-				    (round (- (* chan (tick-length))
-					      *ticker-pos*)
-					   *master-timebase*))
-				 *ticker-pos*)
-			      (* *quantised-pattern-duration*
-				 (tick-length)))))))
-
-(defun inc-ticker-quantised ()
-  (setq *ticker-pos*
-	(rem (+ *ticker-pos* (/ *master-timebase* *ticker-timebase*))
-	     (* (/ *master-timebase* *ticker-timebase*)
-		*quantised-pattern-duration*))))
-
+  (setf (ticks-index (get-active-phrase))
+	(nth-value 1 (floor (+ (* *master-beat-divisor*
+				  (round (- (* chan (sequence-tick-length (get-active-phrase)))
+					    (ticks-index (get-active-phrase)))
+					 *master-beat-divisor*))
+			       (ticks-index (get-active-phrase)))
+			    (* (grid-length (get-active-phrase))
+			       (sequence-tick-length (get-active-phrase)))))))
 (defun inc-ticker ()
-  (setq *ticker-pos*
-	(rem (+ *ticker-pos* 1)
-	     (* (/ *master-timebase* *ticker-timebase*)
-		*quantised-pattern-duration*)))
-  (multiple-value-bind (int frac) (floor *ticker-pos*
-					 (/ *master-timebase* *ticker-timebase*))
-    (when (= 0 frac)
-      (draw-grid)
-      ;; (with-midi-out (ms "/dev/snd/midiC1D0")
-      (loop for trig in (read-step-sequencer-column int)
-	 for message in *step-sequencer-triggers*
-	 when trig
-	 do (write-midi-message message)))))
+  (do-tick (get-active-phrase)))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
   (declare (ignore mess))
@@ -144,40 +154,19 @@
 	      #'assign-step-sequencer-channel
 	      #'toggle-arrange-or-rec-mode)))
 
-(defvar *step-sequencer-grid* (loop for y below 4
-				 collect (loop for x below 16
-					    collect nil)))
-
-(defvar *step-sequencer-triggers*
-  (list (make-instance 'note-on-midi-message
-		       :raw-midi '(144 42 53)) ;; closed hh
-	(make-instance 'note-off-midi-message
-		       :raw-midi '(144 46 81))
-	(make-instance 'note-on-midi-message
-		       :raw-midi '(144 38 68)) ;; snare
-	(make-instance 'note-on-midi-message
-		       :raw-midi '(144 35 111)) ;; kick
-	))
-
-(defun read-step-sequencer-column (x)
-  (mapcar (lambda (row)
-	    (nth x row))
-	  *step-sequencer-grid*))
-
 (defun step-sequencer-button (x y)
   (declare (optimize (debug 3)))
   (lambda (up-or-down)
     (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
-    (print up-or-down)
     (case up-or-down
-      (:press (setf (nth x (nth y *step-sequencer-grid*))
-		    (not (nth x (nth y *step-sequencer-grid*))))))))
+      (:press (setf (aref (grid (get-active-phrase)) x y)
+		    (not (aref (grid (get-active-phrase)) x y)))))))
 
 (defun draw-step-sequencer ()
   (loop for y below 4
      do 
        (loop for x below 16
-	  as cell = (nth x (nth y *step-sequencer-grid*))
+	  as cell = (aref (grid (get-active-phrase)) x y)
 	  when cell
 	  do (monome-set-led-intensity x (+ y 4) 15))))
 
@@ -205,8 +194,7 @@
 (defun draw-grid ()
   (monome-set-all 0)
   (draw-step-sequencer)
-  (monome-set-led-intensity (floor (/ (* *ticker-pos* *ticker-timebase*)
-				      *master-timebase*))
+  (monome-set-led-intensity (floor (ticks-index (get-active-phrase)))
 			    3 15))
 
 (defvar *cntrl-thread* nil)

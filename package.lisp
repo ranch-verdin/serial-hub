@@ -55,5 +55,20 @@
   (:use #:cl #:cffi #:monome-glue #:midi-glue #:calispel)
   (:export #:*reader-ochan*))
 
-(defpackage #:cntrl
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser))
+(defpackage #:sequencers
+  (:use #:cl)
+  (:export #:*master-beat-divisor*
+	   #:grid-sequence #:make-grid-sequence
+	   #:ticks-index #:swing-ratio
+	   #:beat-divisor #:gesture-map
+	   #:grid #:grid-length
+	   #:sequence-tick-length
+	   #:record-gesture #:do-tick
+	   #:grid-set-element #:grid-set-column
+
+	   ;;FIXME - nothing done yet for free-sequence
+	   #:free-sequence))
+
+
+(defpackage #:sguenz
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser #:sequencers))

@@ -17,6 +17,7 @@
 				     (:file "midi-glue")))
 	       (:file "monome-glue")
 	       (:file "serial-hub")
+	       (:file "sequencers")
 	       (:module "cntrl"
 			:components (;; (:file "sections-phrases")
 				     ;; (:file "layout")

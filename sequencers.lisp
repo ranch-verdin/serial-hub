@@ -1,11 +1,14 @@
-(in-package :cl-user)
+(in-package :sequencers)
 
 (defparameter *master-beat-divisor* 24)
 
 (defclass gesture-sequence ()
   ((ticks-index :initarg :ticks-index
 		:initform 0
-		:accessor ticks-index)))
+		:accessor ticks-index)
+   (swing-ratio :initarg :swing-ratio
+		:initform 0
+		:accessor swing-ratio)))
 
 (defun clock-divisor (seq)
   (/ *master-beat-divisor* (beat-divisor seq)))
@@ -16,22 +19,27 @@
    (beat-divisor :initarg :beat-divisor
 		 :initform 4
 		 :accessor beat-divisor)
+   (grid-length :initarg :grid-length
+		:initform 16
+		:accessor grid-length)
    (gesture-map :initarg :gesture-map
 		:initform nil
 		:accessor gesture-map)))
 
-(defun make-grid-sequence (x y gesture-map &key (beat-divisor 4))
+(defun make-grid-sequence (x y gesture-map &key (beat-divisor 4) (swing 0.0))
   (make-instance 'grid-sequence
 		 :sequence (make-array (list x y)
 				       :element-type 'atom
 				       :initial-element nil)
 		 :gesture-map gesture-map
-		 :beat-divisor beat-divisor))
+		 :beat-divisor beat-divisor
+		 :swing-ratio swing))
 
 (defgeneric record-gesture (gesture sequence))
 
 (defmethod record-gesture (gesture (sequence grid-sequence))
-  )
+  (declare (ignore gesture))
+  (error "not implemented yet FIXME"))
 
 (defgeneric sequence-tick-length (gesture-sequence))
 (defmethod sequence-tick-length ((seq grid-sequence))
@@ -63,9 +71,10 @@
 			;; ticks index goes fractional due to, e.g
 			;; 11:5 pattern-length wrapping on 24ppqn
 			;; ticker.  But not sure!
-			(beat-divisor seq))))
+			(beat-divisor seq)
+			(swing-ratio seq))))
     (when grid-crossing
-      (loop for y below (cadr (array-dimensions (grid seq)))
+      (loop for y below (grid-length seq)
 	 do (handle-gesture seq
 			    (resolve-gesture seq
 					     y
@@ -87,7 +96,7 @@
 		    (round x) y)
 	      value)))
 
-(defclass gesture-sequencer ()
+(defclass free-sequence (gesture-sequence)
   ())
 
 (defun do-integer-divisible-test ()
@@ -123,30 +132,16 @@
 
 (defparameter *non-divisible-lookup-tables* (build-non-divisible-lookup-tables 15 96))
 
-(defun grid-crossing-point (ticks beat-divisor &optional (master-clock-divisor *master-beat-divisor*))
+(defun grid-crossing-point (ticks beat-divisor &optional (swing 0.0) (master-clock-divisor *master-beat-divisor*))
   (multiple-value-bind (int-ticks frac-ticks) (floor ticks master-clock-divisor)
     (let ((frac-master-clock (position frac-ticks
-				       (aref *non-divisible-lookup-tables* beat-divisor master-clock-divisor))))
-      (when frac-master-clock
-	(+ (* beat-divisor int-ticks)
-	   frac-master-clock)))))
-
-(defun do-integer-non-divisible-test ()
-  (let ((*master-beat-divisor* 96)
-	(seq (make-grid-sequence 10 4
-				 (list :emph (loop for i below 4
-						collect (format nil "note~a strong" i))
-				       t (loop for i below 4
-					    collect (format nil "note~a" i)))
-				 :beat-divisor 5)))
-    (print (sequence-tick-length seq))
-    (grid-set-column seq 0 '(t t :emph nil))
-    (grid-set-element seq 1 3 :emph)
-    (handle-gestures seq)
-    (loop repeat 95
-       do (do-tick seq)
-	 (print (list 'tick (ticks-index seq)))
-	 (handle-gestures seq))))
+				       (swing-grid-crossings
+					(aref *non-divisible-lookup-tables*
+					      beat-divisor master-clock-divisor)
+					swing))))
+	    (when frac-master-clock
+	      (+ (* beat-divisor int-ticks)
+		 frac-master-clock)))))
 
 (defun swing-grid-crossings (list-of-crossings swing-ratio &optional (master-beat-divisor *master-beat-divisor*))
   (mapcar (lambda (crossing)
@@ -155,3 +150,22 @@
 	      (round (+ crossing
 			(* crossing max-ratio swing-ratio)))))
 	  list-of-crossings))
+
+
+
+(defun do-integer-non-divisible-test ()
+  (let ((*master-beat-divisor* 96)
+	(seq (make-grid-sequence 16 4 (list :emph (loop for i below 4
+						collect (format nil "note~a strong" i))
+				       t (loop for i below 4
+					    collect (format nil "note~a" i)))
+				 :beat-divisor 5
+				 :swing 0.6)))
+    (print (sequence-tick-length seq))
+    (grid-set-column seq 0 '(t t :emph nil))
+    (grid-set-element seq 1 3 :emph)
+    (handle-gestures seq)
+    (loop repeat 95
+       do (do-tick seq)
+	 (print (list 'tick (ticks-index seq)))
+	 (handle-gestures seq))))
