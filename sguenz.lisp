@@ -10,7 +10,7 @@
 		(make-instance 'note-on-midi-message
 			       :raw-midi '(144 35 111))) ;; kick
 	:emph (list (make-instance 'note-on-midi-message
-				   :raw-midi '(144 42 53)) ;; closed hh
+				   :raw-midi '(144 42 127)) ;; closed hh
 		    (make-instance 'note-off-midi-message
 				   :raw-midi '(144 46 81))
 		    (make-instance 'note-on-midi-message
@@ -31,11 +31,11 @@
 (defun new-section ()
   (make-instance 'section))
 
-(defparameter *sguenz-sections* (loop for i below 3 collect (new-section)))
+(defvar *sguenz-sections* (loop for i below 3 collect (new-section)))
 
-(defparameter *current-section* (car *sguenz-sections*))
+(defvar *current-section* (car *sguenz-sections*))
 
-(defparameter *active-phrase* 0)
+(defvar *active-phrase* 0)
 
 (defgeneric handle-event (ev))
 
@@ -145,8 +145,13 @@
   (format t "mute ~a~%" up-or-down))
 (defun stop-all (up-or-down)
   (format t "stop-all ~a~%" up-or-down))
-(defun assign-step-sequencer-channel (up-or-down)
-  (format t "assign-step-sequencer-channel ~a~%" up-or-down))
+(defun emph (up-or-down)
+  (when (eq up-or-down :press)
+    (setf *emph-state*
+	  (case *emph-state*
+	    (:emph t)
+	    (t :emph)))))
+
 (defun toggle-arrange-or-rec-mode (up-or-down)
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
@@ -154,24 +159,43 @@
   (list (list #'play #'stop #'overdub #'overwrite)
 	(list #'del #'copy #'timebase #'quantise)
 	(list #'mute #'stop-all
-	      #'assign-step-sequencer-channel
+	      #'emph
 	      #'toggle-arrange-or-rec-mode)))
+
+(defparameter *emph-state* :emph)
 
 (defun step-sequencer-button (x y)
   (declare (optimize (debug 3)))
   (lambda (up-or-down)
     (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
-    (case up-or-down
-      (:press (setf (aref (grid (get-active-phrase)) x y)
-		    (not (aref (grid (get-active-phrase)) x y)))))))
-
+    (symbol-macrolet ((button-emph (aref (grid (get-active-phrase)) x y)))
+      (case up-or-down
+	(:press (setf button-emph
+		      (or (and (not button-emph)
+			       *emph-state*)
+			  (and (not (eq button-emph *emph-state*))
+			       *emph-state*))))))))
 (defun draw-step-sequencer ()
-  (loop for y below 4
-     do 
-       (loop for x below 16
-	  as cell = (aref (grid (get-active-phrase)) x y)
-	  when cell
-	  do (monome-set-led-intensity x (+ y 4) 15))))
+  (let ((whole-grid (append (loop repeat 4 collect
+				 (loop repeat 16 collect 0))
+			    (loop for y below 4
+			       collect
+				 (loop for x below 16
+				    as cell = (aref (grid (get-active-phrase)) x y)
+				    collect (or (and cell
+						     (if (eq cell :emph)
+							 15
+							 5))
+						0))))))
+    (print whole-grid)
+    (monome-map-intensities 0 0
+			    (mapcar (lambda (row)
+				      (subseq row 0 8))
+				    whole-grid))
+    (monome-map-intensities 8 0
+			    (mapcar (lambda (row)
+				      (subseq row 8))
+				    whole-grid))))
 
 (defparameter *grid-section*
   (loop for y below 4
@@ -198,12 +222,25 @@
   (write-midi-message mess))
 
 (defun draw-grid ()
-  (monome-set-all 0)
+  ;; (monome-set-all 0)
   (draw-step-sequencer)
+  (monome-row-intensities 0 3
+		  (loop for i below 8
+		     collect (if (< i (grid-length (get-active-phrase)))
+				 4
+				 0)))
+  (monome-row-intensities 8 3
+		  (loop for i from 8 below 16
+		     collect (if (< i (grid-length (get-active-phrase)))
+				 4
+				 0)))
   (monome-set-led-intensity (round (* (/ (ticks-index (get-active-phrase))
 					 *master-beat-divisor*)
 				      (beat-divisor (get-active-phrase))))
-			    3 15))
+			    3 15)
+  (monome-set-led-intensity 6 2 (if (eq *emph-state* :emph)
+				    15
+				    6)))
 
 (defvar *cntrl-thread* nil)
 
