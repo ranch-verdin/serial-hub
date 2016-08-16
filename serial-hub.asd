@@ -18,10 +18,6 @@
 	       (:file "monome-glue")
 	       (:file "serial-hub")
 	       (:file "sequencers")
-	       (:module "cntrl"
-			:components (;; (:file "sections-phrases")
-				     ;; (:file "layout")
-				     ;; (:file "toplevel")
-				     (:file "cntrl"))))
+	       (:file "sguenz"))
   :depends-on (:optima :cffi :iterate :external-program :calispel :cl-monome))
 
