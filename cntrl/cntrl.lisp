@@ -195,6 +195,10 @@
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
 
+(defmethod handle-gesture ((seq grid-sequence) (mess note-on-midi-message))
+  (print 'monkey)
+  (write-midi-message mess))
+
 (defun draw-grid ()
   (monome-set-all 0)
   (draw-step-sequencer)

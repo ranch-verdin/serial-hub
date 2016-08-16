@@ -57,7 +57,8 @@
 
 (defpackage #:sequencers
   (:use #:cl)
-  (:export #:*master-beat-divisor*
+  (:export #:*master-beat-divisor* #:handle-gesture
+
 	   #:grid-sequence #:make-grid-sequence
 	   #:ticks-index #:swing-ratio
 	   #:beat-divisor #:gesture-map
@@ -65,7 +66,7 @@
 	   #:sequence-tick-length #:handle-gestures
 	   #:record-gesture #:do-tick
 	   #:grid-set-element #:grid-set-column
-
+	   
 	   ;;FIXME - nothing done yet for free-sequence
 	   #:free-sequence))
 
