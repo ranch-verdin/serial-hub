@@ -23,7 +23,7 @@
   ((grid-seq :initform (make-grid-sequence 16 4
 					   (default-step-sequencer-triggers)
 					   :beat-divisor 4
-					   :swing 0.6))
+					   :swing 0))
    (free-seq1 :initform (make-instance 'free-sequence))
    (free-seq2 :initform (make-instance 'free-sequence))
    (free-seq3 :initform (make-instance 'free-sequence))))
@@ -114,7 +114,9 @@
 			       (sequence-tick-length (get-active-phrase)))))))
 (defun inc-ticker ()
   (prog1 (do-tick (get-active-phrase))
-    (handle-gestures (get-active-phrase))))
+    (handle-gestures (get-active-phrase))
+    (when (grid-crossing-point (get-active-phrase))
+      (draw-grid))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
   (declare (ignore mess))
@@ -184,19 +186,15 @@
 (defmethod handle-event ((event monome-button-event))
   (let ((x (slot-value event 'x))
 	(y (slot-value event 'y)))
-    (print (list x y))
     (funcall (or (nth x (nth y *whole-grid*))
 		 (lambda (foo)
-		   (print 'got-a-foo)
 		   (when (eq foo :press)
-		     (inc-ticker)
-		     (draw-grid))))
+		     (inc-ticker))))
 	     (typecase event
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
 
 (defmethod handle-gesture ((seq grid-sequence) (mess note-on-midi-message))
-  (print 'monkey)
   (write-midi-message mess))
 
 (defun draw-grid ()
