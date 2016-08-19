@@ -43,34 +43,48 @@
 (defmethod handle-event ((ev t))
   (warn "unknown event received: ~a" ev))
 
+(defun get-section-phrases (&optional (sec *current-section*))
+  (list (slot-value sec 'grid-seq)
+	(slot-value sec 'free-seq1)
+	(slot-value sec 'free-seq2)
+	(slot-value sec 'free-seq3)))
+
+(defmethod handle-event ((ev midi-performance-gesture))
+  (mapcar (lambda (seq)
+	    (record-gesture ev seq))
+	  (get-section-phrases *current-section*)))
+
 (defun section-a (up-or-down)
-  (format t "section-a ~a~%" up-or-down)
+  (format t "section-0 ~a~%" up-or-down)
   (setf *current-section* (car *sguenz-sections*)))
 
 (defun section-b (up-or-down)
-  (format t "section-b ~a~%" up-or-down)
+  (format t "section-1 ~a~%" up-or-down)
   (setf *current-section* (cadr *sguenz-sections*)))
 
 (defun section-c (up-or-down)
-  (format t "section-c ~a~%" up-or-down)
+  (format t "section-2 ~a~%" up-or-down)
   (setf *current-section* (caddr *sguenz-sections*)))
 
-(defun phrase-selector (phrase-idx)
+(defun phrase-selector (phrase-group phrase-idx)
   (lambda (up-or-down)
-    (format t "section-c-phrase ~a ~a~%" phrase-idx up-or-down)
+    (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
     (when (eq :pressed up-or-down)
       (setf *active-phrase* phrase-idx))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
-	      (mapcar #'phrase-selector
-		      '(1 2 3 )))
+	      (mapcar (lambda (x)
+			(phrase-selector 0 x))
+		      '(0 1 2)))
 	(cons #'section-b
-	      (mapcar #'phrase-selector
-		      '(1 2 3 )))
+	      (mapcar (lambda (x)
+			(phrase-selector 1 x))
+		      '(0 1 2)))
 	(cons #'section-c
-	      (mapcar #'phrase-selector
-		      '(1 2 3 )))))
+	      (mapcar (lambda (x)
+			(phrase-selector 3 x))
+		      '(0 1 2)))))
 
 ;; if we hold and press left-most, then a button in middle,
 ;; the pattern length can be changed
@@ -114,11 +128,17 @@
 			    (* (grid-length (get-active-phrase))
 			       (sequence-tick-length (get-active-phrase)))))))
 
-(defmethod transmit-gesture ((seq grid-sequence) (mess note-on-midi-message))
+(defmethod transmit-gesture ((mess null))
+  "don't blow up")
+
+(defmethod transmit-gesture ((mess note-on-midi-message))
   (write-midi-message mess))
 
 (defun inc-ticker ()
-  (prog1 (do-tick (get-active-phrase))
+  (prog1 (values (do-tick (slot-value *current-section* 'grid-seq))
+		 (do-tick (slot-value *current-section* 'free-seq1))
+		 (do-tick (slot-value *current-section* 'free-seq2))
+		 (do-tick (slot-value *current-section* 'free-seq3)))
     (mapcar #'transmit-gesture
 	    (read-gestures (get-active-phrase)))
     (when (grid-crossing-point (get-active-phrase))
@@ -247,7 +267,7 @@
 
 (defvar *cntrl-thread* nil)
 
-(defun start-cntrl-app ()
+(defun start-sguenz-app ()
   (assert (null *cntrl-thread*))
   (setf *cntrl-thread*
 	(bt:make-thread (lambda ()
@@ -258,6 +278,6 @@
 				(setf *cntrl-thread* nil)))))
 			:name "cntrl-app")))
 
-(defun stop-cntrl-app ()
+(defun stop-sguenz-app ()
   (bt:destroy-thread *cntrl-thread*)
   (setf *cntrl-thread* nil))

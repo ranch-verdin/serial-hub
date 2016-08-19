@@ -40,7 +40,7 @@
 
 (defmethod record-gesture (gesture (sequence grid-sequence))
   (declare (ignore gesture))
-  (error "not implemented yet FIXME"))
+  (warn "record for grid not implemented yet FIXME"))
 
 (defgeneric sequence-tick-length (gesture-sequence))
 (defmethod sequence-tick-length ((seq grid-sequence))
@@ -277,7 +277,8 @@
      do (setf (aref (fs-memory seq) i) nil))
   (setf (fill-pointer (fs-memory seq)) 0)
   (setf (rec-state seq) nil)
-  (setf (play-state seq) nil))
+  (setf (play-state seq) nil)
+  (setf (ticks-index seq) 0))
 
 (defgeneric copy-sequence (seq1 seq2))
 (defmethod copy-sequence ((seq1 free-sequence) (seq2 free-sequence))
@@ -301,6 +302,7 @@
 (defmethod play-stop ((seq free-sequence))
   "returns any hanging tones we need to emit to avoid 'stuck' notes"
   (setf (play-state seq) nil)
+  (rec-unarm seq)
   (drain-hanging-tones seq))
 
 (defmethod rec-arm ((seq free-sequence))
@@ -313,8 +315,9 @@
 (defmethod loop-cycle ((seq free-sequence))
   (case (play-state seq)
     (:repeat (play-stop seq))
-    (:push-extend (play-repeat seq))
-    (nil (if (= 0 (fill-pointer (fs-memory seq)))
-	     (progn (rec-arm seq)
-		    (play-push-extend seq))
-	     (play-repeat seq)))))
+    (:push-extend (play-repeat seq)
+		  (rec-unarm seq))
+    (otherwise (if (= 0 (fill-pointer (fs-memory seq)))
+		   (progn (rec-arm seq)
+			  (play-push-extend seq))
+		   (play-repeat seq)))))
