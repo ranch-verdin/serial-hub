@@ -131,7 +131,7 @@
 (defmethod transmit-gesture ((mess null))
   "don't blow up")
 
-(defmethod transmit-gesture ((mess note-on-midi-message))
+(defmethod transmit-gesture ((mess midi-performance-gesture))
   (write-midi-message mess))
 
 (defun inc-ticker ()
