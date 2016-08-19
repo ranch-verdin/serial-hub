@@ -31,7 +31,8 @@
 (defun new-section ()
   (make-instance 'section))
 
-(defvar *sguenz-sections* (loop for i below 3 collect (new-section)))
+(defvar *sguenz-sections* (loop for i below 3
+			     collect (new-section)))
 
 (defvar *current-section* (car *sguenz-sections*))
 
@@ -112,9 +113,14 @@
 			       (ticks-index (get-active-phrase)))
 			    (* (grid-length (get-active-phrase))
 			       (sequence-tick-length (get-active-phrase)))))))
+
+(defmethod transmit-gesture ((seq grid-sequence) (mess note-on-midi-message))
+  (write-midi-message mess))
+
 (defun inc-ticker ()
   (prog1 (do-tick (get-active-phrase))
-    (handle-gestures (get-active-phrase))
+    (mapcar #'transmit-gesture
+	    (read-gestures (get-active-phrase)))
     (when (grid-crossing-point (get-active-phrase))
       (draw-grid))))
 
@@ -218,22 +224,19 @@
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
 
-(defmethod handle-gesture ((seq grid-sequence) (mess note-on-midi-message))
-  (write-midi-message mess))
-
 (defun draw-grid ()
   ;; (monome-set-all 0)
   (draw-step-sequencer)
   (monome-row-intensities 0 3
-		  (loop for i below 8
-		     collect (if (< i (grid-length (get-active-phrase)))
-				 4
-				 0)))
+			  (loop for i below 8
+			     collect (if (< i (grid-length (get-active-phrase)))
+					 4
+					 0)))
   (monome-row-intensities 8 3
-		  (loop for i from 8 below 16
-		     collect (if (< i (grid-length (get-active-phrase)))
-				 4
-				 0)))
+			  (loop for i from 8 below 16
+			     collect (if (< i (grid-length (get-active-phrase)))
+					 4
+					 0)))
   (monome-set-led-intensity (round (* (/ (ticks-index (get-active-phrase))
 					 *master-beat-divisor*)
 				      (beat-divisor (get-active-phrase))))

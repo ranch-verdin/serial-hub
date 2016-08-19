@@ -57,19 +57,20 @@
 
 (defpackage #:sequencers
   (:use #:cl)
-  (:export #:*master-beat-divisor* #:handle-gesture
-
+  (:export #:*master-beat-divisor*
 	   #:grid-sequence #:make-grid-sequence
 	   #:ticks-index #:swing-ratio
 	   #:beat-divisor #:gesture-map
 	   #:grid #:grid-length
 	   #:grid-crossing-point
-	   #:sequence-tick-length #:handle-gestures
+	   #:sequence-tick-length #:read-gestures
 	   #:record-gesture #:do-tick
 	   #:grid-set-element #:grid-set-column
 	   
-	   ;;FIXME - nothing done yet for free-sequence
-	   #:free-sequence))
+	   #:free-sequence #:note-on #:note-off
+	   #:do-tick #:erase-sequence #:copy-sequence
+	   #:play-push-extend #:play-repeat #:play-stop
+	   #:rec-arm #:rec-unarm))
 
 
 (defpackage #:sguenz

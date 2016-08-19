@@ -14,7 +14,7 @@
   (/ *master-beat-divisor* (beat-divisor seq)))
 
 (defclass grid-sequence (gesture-sequence)
-  ((grid :initarg :sequence
+  ((grid :initarg :grid
 	 :accessor grid)
    (beat-divisor :initarg :beat-divisor
 		 :initform 4
@@ -28,9 +28,9 @@
 
 (defun make-grid-sequence (x y gesture-map &key (grid-length 16) (beat-divisor 4) (swing 0.0))
   (make-instance 'grid-sequence
-		 :sequence (make-array (list (+ x 1) y)
-				       :element-type 'atom
-				       :initial-element nil)
+		 :grid (make-array (list (+ x 1) y)
+				   :element-type 'atom
+				   :initial-element nil)
 		 :gesture-map gesture-map
 		 :beat-divisor beat-divisor
 		 :swing-ratio swing
@@ -61,21 +61,15 @@
   (nth gesture-index
        (getf (gesture-map seq) gesture-modifier)))
 
-(defmethod handle-gesture ((seq grid-sequence) gesture)
-  (declare (ignorable gesture seq))
-  #+nil
-  (print gesture))
-
-(defgeneric handle-gestures (seq))
-(defmethod handle-gestures ((seq grid-sequence))
+(defgeneric read-gestures (seq))
+(defmethod read-gestures ((seq grid-sequence))
   (let ((grid-crossing (grid-crossing-point seq)))
     (when grid-crossing
       (loop for y below (cadr (array-dimensions (grid seq)))
-	 do (handle-gesture seq
-			    (resolve-gesture seq
-					     y
-					     (aref (grid seq)
-						   grid-crossing y)))))))
+	 collect (resolve-gesture seq
+				  y
+				  (aref (grid seq)
+					grid-crossing y))))))
 
 (defgeneric grid-set-element (seq x y value))
 
@@ -92,9 +86,6 @@
 		    (round x) y)
 	      value)))
 
-(defclass free-sequence (gesture-sequence)
-  ())
-
 (defun do-integer-divisible-test ()
   (let ((*master-beat-divisor* 24)
 	(seq (make-grid-sequence 16 4
@@ -104,10 +95,10 @@
 					    collect (format nil "note~a" i))))))
     (grid-set-column seq 0 '(t t :emph nil))
     (grid-set-element seq 1 3 :emph)
-    (handle-gestures seq)
+    (print (read-gestures seq))
     (loop repeat (+ 6 (* 16 6))
        do (do-tick seq))
-    (handle-gestures seq)))
+    (read-gestures seq)))
 
 (defun build-non-divisible-lookup-table (grid-beat-divisor master-clock-beat-divisor)
   (loop for (this next) on (loop for i below master-clock-beat-divisor
@@ -149,8 +140,6 @@
 			(* crossing max-ratio swing-ratio)))))
 	  list-of-crossings))
 
-
-
 (defun do-integer-non-divisible-test ()
   (let ((*master-beat-divisor* 96)
 	(seq (make-grid-sequence 16 4 (list :emph (loop for i below 4
@@ -162,10 +151,10 @@
 				 :swing 0.6)))
     (grid-set-column seq 0 '(t t :emph nil))
     (grid-set-element seq 1 3 :emph)
-    (handle-gestures seq)
+    (print (read-gestures seq))
     (loop repeat (* 96 3)
        as gc = (progn (do-tick seq)
-		      (handle-gestures seq)
+		      (print (read-gestures seq))
 		      (grid-crossing-point seq))
        when gc
        do
@@ -182,12 +171,150 @@
 				 :swing 0.6)))
     (grid-set-column seq 0 '(t t :emph nil))
     (grid-set-element seq 1 3 :emph)
-    (handle-gestures seq)
+    (print (read-gestures seq))
     (loop repeat (* 96 3)
        as gc = (progn (do-tick seq)
-		      (handle-gestures seq)
+		      (print (read-gestures seq))
 		      (grid-crossing-point seq))
        do (print (ticks-index seq))
        when gc
        do
 	 (format t "grid point = ~a~%" gc))))
+
+(defvar *max-free-seq-length* (* *master-beat-divisor* 150))
+
+(defclass free-sequence (gesture-sequence)
+  ((memory :initarg :memory
+	   :accessor fs-memory
+	   :initform (make-array *max-free-seq-length*
+				 :fill-pointer 0
+				 :initial-element nil))
+   (quantisation :initarg :quantisation
+		 :initform *master-beat-divisor*
+		 :accessor quantisation)
+   (hanging-rec-tones :initarg :hanging-rec-tones
+		      :initform nil
+		      :accessor hanging-rec-tones)
+   (hanging-play-tones :initarg :hanging-play-tones
+		      :initform nil
+		      :accessor hanging-play-tones)
+   (play-state :initarg :play-state
+	       :initform nil
+	       :accessor play-state)
+   (rec-state :initarg :rec-state
+	      :initform nil
+	      :accessor rec-state)))
+
+(defmethod armed-and-ready ((seq free-sequence))
+  (and (eq (rec-state seq)
+		 :overdub)
+	     (> (ticks-index seq) 0)
+	     (<= (ticks-index seq)
+		 (fill-pointer (fs-memory seq)))))
+
+(defmethod record-gesture (gesture (seq free-sequence))
+  (warn "record-gesture quantisation not implemented yet...")
+  (when (armed-and-ready seq)
+    (push gesture (aref (fs-memory seq)
+			(- (ticks-index seq)
+			   1)))))
+
+(defmethod record-gesture :around ((gesture note-on-message) (seq free-sequence))
+  (when (armed-and-ready seq)
+    (push gesture (hanging-rec-tones seq)))
+  (call-next-method))
+
+;; These are empty classes to denote a generalised type of 'note' that
+;; can be either noteon or noteoff, e.g midi however this allows the
+;; same method to be reused by, e.g an osc synth
+(defclass note-on-message ()
+  ())
+(defclass note-off-message ()
+  ())
+
+(defgeneric note-off (note-on))
+
+(defmethod note-off ((note-on note-on-message))
+  (make-instance 'note-off-message))
+
+(defmethod read-gestures ((seq free-sequence))
+  (loop for gesture in (aref (fs-memory seq)
+			     (ticks-index seq))
+     do (push gesture (hanging-play-tones seq)) ;; XXX hack! we can
+						;; only read each
+						;; gesture once - badish..
+     collect gesture))
+
+(defmethod drain-hanging-rec-tones ((seq free-sequence))
+  (loop for rec-tone in (hanging-rec-tones seq)
+     do (record-gesture seq (note-off rec-tone)))
+  (setf (hanging-rec-tones seq) nil))
+(defmethod drain-hanging-play-tones ((seq free-sequence))
+  (loop for play-tone in (hanging-play-tones seq)
+     collect (handle-gesture (note-off play-tone) seq))
+  (setf (hanging-play-tones seq) nil))
+
+(defmethod drain-hanging-tones ((seq free-sequence))
+  (drain-hanging-rec-tones seq)
+  (drain-hanging-play-tones seq))
+
+(defmethod do-tick ((seq free-sequence))
+  (when (play-state seq)
+    (incf (ticks-index seq))
+    (when (>= (ticks-index seq)
+	      (sequence-tick-length seq))
+      (case (play-state seq)
+	(:push-extend (incf (fill-pointer (fs-memory seq))))
+	(:repeat (setf (ticks-index seq)
+		       (- (ticks-index seq)
+			  (sequence-tick-length seq)))
+		 (drain-hanging-tones seq)))))
+  (ticks-index seq))
+
+(defgeneric erase-sequence (sequence))
+(defmethod erase-sequence ((seq free-sequence))
+  (loop for i below (sequence-tick-length seq)
+     do (setf (aref (fs-memory seq) i) nil))
+  (setf (fill-pointer (fs-memory seq)) 0)
+  (setf (rec-state seq) nil)
+  (setf (play-state seq) nil))
+
+(defgeneric copy-sequence (seq1 seq2))
+(defmethod copy-sequence ((seq1 free-sequence) (seq2 free-sequence))
+  (erase-sequence seq2)
+  (setf (fill-pointer (fs-memory seq2))
+	(fill-pointer (fs-memory seq1)))
+  (setf (rec-state seq2) nil)
+  (setf (play-state seq2) nil)
+  (loop for i below (sequence-tick-length seq1)
+     do (setf (aref (fs-memory seq2) i)
+	      (aref (fs-memory seq1) i))))
+
+(defmethod play-push-extend ((seq free-sequence))
+  (setf (play-state seq)
+	:push-extend))
+
+(defmethod play-repeat ((seq free-sequence))
+  (setf (play-state seq)
+	:repeat))
+
+(defmethod play-stop ((seq free-sequence))
+  "returns any hanging tones we need to emit to avoid 'stuck' notes"
+  (setf (play-state seq) nil)
+  (drain-hanging-tones seq))
+
+(defmethod rec-arm ((seq free-sequence))
+  (setf (rec-state seq) :overdub))
+
+(defmethod rec-unarm ((seq free-sequence))
+  (setf (rec-state seq) nil)
+  (drain-hanging-rec-tones seq))
+
+(defmethod loop-cycle ((seq free-sequence))
+  (case (play-state seq)
+    (:repeat (play-stop seq))
+    (:push-extend (play-repeat seq))
+    (nil (if (= 0 (fill-pointer (fs-memory seq)))
+	     (progn (rec-arm seq)
+		    (play-push-extend seq))
+	     (play-repeat seq)))))
