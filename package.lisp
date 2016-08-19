@@ -56,7 +56,7 @@
   (:export #:*reader-ochan*))
 
 (defpackage #:sequencers
-  (:use #:cl)
+  (:use #:cl #:midi-packetiser)
   (:export #:*master-beat-divisor*
 	   #:grid-sequence #:make-grid-sequence
 	   #:ticks-index #:swing-ratio

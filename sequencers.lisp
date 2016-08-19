@@ -219,18 +219,18 @@
 			(- (ticks-index seq)
 			   1)))))
 
+;; These are empty classes to denote a generalised type of 'note' that
+;; can be either noteon or noteoff, e.g midi however this allows the
+;; same method to be reused by, e.g an osc synth
+(defclass note-on-message (note-on-midi-message)
+  ())
+(defclass note-off-message (note-off-midi-message)
+  ())
+
 (defmethod record-gesture :around ((gesture note-on-message) (seq free-sequence))
   (when (armed-and-ready seq)
     (push gesture (hanging-rec-tones seq)))
   (call-next-method))
-
-;; These are empty classes to denote a generalised type of 'note' that
-;; can be either noteon or noteoff, e.g midi however this allows the
-;; same method to be reused by, e.g an osc synth
-(defclass note-on-message ()
-  ())
-(defclass note-off-message ()
-  ())
 
 (defgeneric note-off (note-on))
 
