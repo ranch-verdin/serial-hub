@@ -6,7 +6,7 @@
 		(make-instance 'note-off-midi-message
 			       :raw-midi '(144 46 81))
 		(make-instance 'note-on-midi-message
-			       :raw-midi '(144 38 68)) ;; snare
+			       :raw-midi '(144 37 68)) ;; snare
 		(make-instance 'note-on-midi-message
 			       :raw-midi '(144 35 111))) ;; kick
 	:emph (list (make-instance 'note-on-midi-message
@@ -69,22 +69,24 @@
 (defun phrase-selector (phrase-group phrase-idx)
   (lambda (up-or-down)
     (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
-    (when (eq :pressed up-or-down)
-      (setf *active-phrase* phrase-idx))))
+    (when (eq :press up-or-down)
+      (setf *active-phrase* phrase-idx)
+      (loop-cycle (get-active-phrase))
+      (print 'monkey))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
 	      (mapcar (lambda (x)
 			(phrase-selector 0 x))
-		      '(0 1 2)))
+		      '(1 2 3)))
 	(cons #'section-b
 	      (mapcar (lambda (x)
 			(phrase-selector 1 x))
-		      '(0 1 2)))
+		      '(1 2 3)))
 	(cons #'section-c
 	      (mapcar (lambda (x)
 			(phrase-selector 3 x))
-		      '(0 1 2)))))
+		      '(1 2 3)))))
 
 ;; if we hold and press left-most, then a button in middle,
 ;; the pattern length can be changed
@@ -101,7 +103,7 @@
 	 (slot-value *current-section* 'free-seq3))))
 
 (defun set-quantised-pattern-duration (dur)
-  (setf (grid-length (get-active-phrase))
+  (setf (grid-length (get-active-grid))
 	dur))
 
 (defun ticker-strip (chan)
@@ -134,14 +136,22 @@
 (defmethod transmit-gesture ((mess midi-performance-gesture))
   (write-midi-message mess))
 
+(defun get-active-grid ()
+  (slot-value *current-section* 'grid-seq))
+
 (defun inc-ticker ()
   (prog1 (values (do-tick (slot-value *current-section* 'grid-seq))
 		 (do-tick (slot-value *current-section* 'free-seq1))
 		 (do-tick (slot-value *current-section* 'free-seq2))
 		 (do-tick (slot-value *current-section* 'free-seq3)))
-    (mapcar #'transmit-gesture
-	    (read-gestures (get-active-phrase)))
-    (when (grid-crossing-point (get-active-phrase))
+    (mapcar (lambda (phrase)
+	      (mapcar #'transmit-gesture
+		      (read-gestures phrase)))
+	    (list (slot-value *current-section* 'grid-seq)
+		  (slot-value *current-section* 'free-seq1)
+		  (slot-value *current-section* 'free-seq2)
+		  (slot-value *current-section* 'free-seq3)))
+    (when (grid-crossing-point (get-active-grid))
       (draw-grid))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
@@ -194,7 +204,7 @@
   (declare (optimize (debug 3)))
   (lambda (up-or-down)
     (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
-    (symbol-macrolet ((button-emph (aref (grid (get-active-phrase)) x y)))
+    (symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
       (case up-or-down
 	(:press (setf button-emph
 		      (or (and (not button-emph)
@@ -207,13 +217,12 @@
 			    (loop for y below 4
 			       collect
 				 (loop for x below 16
-				    as cell = (aref (grid (get-active-phrase)) x y)
+				    as cell = (aref (grid (get-active-grid)) x y)
 				    collect (or (and cell
 						     (if (eq cell :emph)
 							 15
 							 5))
 						0))))))
-    (print whole-grid)
     (monome-map-intensities 0 0
 			    (mapcar (lambda (row)
 				      (subseq row 0 8))
@@ -249,17 +258,17 @@
   (draw-step-sequencer)
   (monome-row-intensities 0 3
 			  (loop for i below 8
-			     collect (if (< i (grid-length (get-active-phrase)))
+			     collect (if (< i (grid-length (get-active-grid)))
 					 4
 					 0)))
   (monome-row-intensities 8 3
 			  (loop for i from 8 below 16
-			     collect (if (< i (grid-length (get-active-phrase)))
+			     collect (if (< i (grid-length (get-active-grid)))
 					 4
 					 0)))
-  (monome-set-led-intensity (round (* (/ (ticks-index (get-active-phrase))
+  (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
 					 *master-beat-divisor*)
-				      (beat-divisor (get-active-phrase))))
+				      (beat-divisor (get-active-grid))))
 			    3 15)
   (monome-set-led-intensity 6 2 (if (eq *emph-state* :emph)
 				    15

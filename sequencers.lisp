@@ -205,6 +205,9 @@
 	      :initform nil
 	      :accessor rec-state)))
 
+(defmethod sequence-tick-length ((seq free-sequence))
+  (fill-pointer (fs-memory seq)))
+
 (defmethod armed-and-ready ((seq free-sequence))
   (and (eq (rec-state seq)
 		 :overdub)
@@ -222,20 +225,18 @@
 ;; These are empty classes to denote a generalised type of 'note' that
 ;; can be either noteon or noteoff, e.g midi however this allows the
 ;; same method to be reused by, e.g an osc synth
-(defclass note-on-message (note-on-midi-message)
-  ())
-(defclass note-off-message (note-off-midi-message)
-  ())
-
-(defmethod record-gesture :around ((gesture note-on-message) (seq free-sequence))
+(defmethod record-gesture :around ((gesture note-on-midi-message) (seq free-sequence))
   (when (armed-and-ready seq)
     (push gesture (hanging-rec-tones seq)))
   (call-next-method))
 
 (defgeneric note-off (note-on))
+(defmethod note-off (thing)
+  (declare (ignore thing))
+  nil)
 
-(defmethod note-off ((note-on note-on-message))
-  (make-instance 'note-off-message))
+(defmethod note-off ((note-on note-on-midi-message))
+  (make-instance 'note-off-midi-message))
 
 (defmethod read-gestures ((seq free-sequence))
   (loop for gesture in (aref (fs-memory seq)
@@ -247,11 +248,11 @@
 
 (defmethod drain-hanging-rec-tones ((seq free-sequence))
   (loop for rec-tone in (hanging-rec-tones seq)
-     do (record-gesture seq (note-off rec-tone)))
+     do (record-gesture (note-off rec-tone) seq))
   (setf (hanging-rec-tones seq) nil))
 (defmethod drain-hanging-play-tones ((seq free-sequence))
   (loop for play-tone in (hanging-play-tones seq)
-     collect (handle-gesture (note-off play-tone) seq))
+     collect (note-off play-tone))
   (setf (hanging-play-tones seq) nil))
 
 (defmethod drain-hanging-tones ((seq free-sequence))
@@ -278,7 +279,8 @@
   (setf (fill-pointer (fs-memory seq)) 0)
   (setf (rec-state seq) nil)
   (setf (play-state seq) nil)
-  (setf (ticks-index seq) 0))
+  (setf (ticks-index seq) 0)
+  (drain-hanging-play-tones seq))
 
 (defgeneric copy-sequence (seq1 seq2))
 (defmethod copy-sequence ((seq1 free-sequence) (seq2 free-sequence))
