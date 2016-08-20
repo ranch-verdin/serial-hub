@@ -70,8 +70,9 @@
 	   #:free-sequence #:note-on #:note-off
 	   #:do-tick #:erase-sequence #:copy-sequence
 	   #:play-push-extend #:play-repeat #:play-stop
+	   #:play-state #:rec-state #:empty-p
 	   #:rec-arm #:rec-unarm
-	   #:loop-cycle))
+	   #:loop-cycle #:grid-position))
 
 
 (defpackage #:sguenz

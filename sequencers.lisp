@@ -53,6 +53,13 @@
 	(* (beat-divisor seq)
 	   (/ tick-length *master-beat-divisor*))))
 
+(defgeneric (setf grid-position) (grid-pos seq))
+(defmethod (setf grid-position) (grid-pos (seq grid-sequence))
+  (setf (ticks-index seq)
+	(- (* grid-pos *master-beat-divisor*
+	      (/ (beat-divisor seq)))
+	   1)))
+
 (defgeneric do-tick (gesture-sequence))
 
 (defmethod do-tick ((seq grid-sequence))
@@ -304,6 +311,10 @@
   (setf (play-state seq) nil)
   (setf (ticks-index seq) 0)
   (drain-hanging-play-tones seq))
+
+(defgeneric empty-p (sequence))
+(defmethod empty-p ((seq free-sequence))
+  (= 0 (fill-pointer (fs-memory seq))))
 
 (defgeneric copy-sequence (seq1 seq2))
 (defmethod copy-sequence ((seq1 free-sequence) (seq2 free-sequence))

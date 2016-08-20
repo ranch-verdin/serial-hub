@@ -31,8 +31,8 @@
 (defmethod get-sequences ((sec section))
   (list (slot-value sec 'grid-seq)
 	(slot-value sec 'free-seq1)
-	(slot-value sec 'free-seq1)
-	(slot-value sec 'free-seq1)))
+	(slot-value sec 'free-seq2)
+	(slot-value sec 'free-seq3)))
 
 (defvar *queued-section* nil)
 
@@ -95,12 +95,17 @@
   (lambda (up-or-down)
     (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
     (when (eq :press up-or-down)
-      (setf *active-phrase* phrase-idx)
-      (loop-cycle (get-active-phrase))
-      (setf (sequence-tick-length (get-active-phrase))
-	    (* *master-beat-divisor*
-	       (round (ticks-index (get-active-phrase))
-		      *master-beat-divisor*))))))
+      (let ((pushed-section (nth phrase-group *sguenz-sections*)))
+	(loop-cycle (nth phrase-idx (get-sequences pushed-section)))
+	(when (eq pushed-section *current-section*)
+	  (setf *active-phrase* phrase-idx)
+
+	  ;;WTF!?
+	  ;; (setf (sequence-tick-length (get-active-phrase))
+	  ;; 	(* *master-beat-divisor*
+	  ;; 	   (round (ticks-index (get-active-phrase))
+	  ;; 		  *master-beat-divisor*)))
+	  )))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
@@ -113,7 +118,7 @@
 		      '(1 2 3)))
 	(cons #'section-c
 	      (mapcar (lambda (x)
-			(phrase-selector 3 x))
+			(phrase-selector 2 x))
 		      '(1 2 3)))))
 
 ;; if we hold and press left-most, then a button in middle,
@@ -149,14 +154,8 @@
 		    (scrub-to-quantised-point chan)))))))
 
 (defun scrub-to-quantised-point (chan)
-  (setf (ticks-index (get-active-phrase))
-	(nth-value 1 (floor (+ (* *master-beat-divisor*
-				  (round (- (* chan (sequence-tick-length (get-active-grid)))
-					    (ticks-index (get-active-grid)))
-					 *master-beat-divisor*))
-			       (ticks-index (get-active-grid)))
-			    (* (grid-length (get-active-grid))
-			       (sequence-tick-length (get-active-grid)))))))
+  (setf (grid-position (get-active-grid))
+	chan))
 
 (defmethod transmit-gesture ((mess null))
   "don't blow up")
@@ -291,9 +290,7 @@
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
 
-(defun draw-grid ()
-  ;; (monome-set-all 0)
-  (draw-step-sequencer)
+(defun draw-grid-seq-ticker ()
   (monome-row-intensities 0 3
 			  (loop for i below 8
 			     collect (if (< i (grid-length (get-active-grid)))
@@ -307,10 +304,35 @@
   (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
 					 *master-beat-divisor*)
 				      (beat-divisor (get-active-grid))))
-			    3 15)
+			    3 15))
+
+(defun draw-utility-button-states ()
   (monome-set-led-intensity 6 2 (if (eq *emph-state* :emph)
 				    15
-				    6)))
+				    6)) ;; emph button
+  )
+
+(defun draw-section-sequence-states ()
+  (loop for section in *sguenz-sections*
+     for i below (length *sguenz-sections*)
+     do (monome-set-led-intensity 0 i (if (eq *current-section*
+					      section)
+					  15
+					  6))
+       (loop for j from 1 to 3
+	  for seq in (cdr (get-sequences section))
+	  do (unless (empty-p seq)
+	       (monome-set-led-intensity j i
+					 (if (play-state seq)
+					     15
+					     6))))))
+
+(defun draw-grid ()
+  ;; (monome-set-all 0)
+  (draw-step-sequencer)
+  (draw-grid-seq-ticker)
+  (draw-utility-button-states)
+  (draw-section-sequence-states))
 
 (defvar *cntrl-thread* nil)
 
