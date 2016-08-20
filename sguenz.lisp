@@ -4,19 +4,19 @@
   (list t (list (make-instance 'note-on-midi-message
 			       :raw-midi '(144 42 53)) ;; closed hh
 		(make-instance 'note-off-midi-message
-			       :raw-midi '(144 46 81))
+			       :raw-midi '(144 47 81)) ;; tom Lo
 		(make-instance 'note-on-midi-message
-			       :raw-midi '(144 37 68)) ;; snare
+			       :raw-midi '(144 37 68)) ;; rimshot
 		(make-instance 'note-on-midi-message
 			       :raw-midi '(144 35 111))) ;; kick
 	:emph (list (make-instance 'note-on-midi-message
-				   :raw-midi '(144 42 127)) ;; closed hh
+				   :raw-midi '(144 46 53)) ;; open hh
 		    (make-instance 'note-off-midi-message
-				   :raw-midi '(144 46 81))
+				   :raw-midi '(144 48 81)) ;; Tom Hi
 		    (make-instance 'note-on-midi-message
 				   :raw-midi '(144 38 68)) ;; snare
 		    (make-instance 'note-on-midi-message
-				   :raw-midi '(144 36 111))) ;; kick
+				   :raw-midi '(144 36 111))) ;; long kick
 	))
 
 (defclass section ()
@@ -27,6 +27,23 @@
    (free-seq1 :initform (make-instance 'free-sequence))
    (free-seq2 :initform (make-instance 'free-sequence))
    (free-seq3 :initform (make-instance 'free-sequence))))
+
+(defmethod get-sequences ((sec section))
+  (list (slot-value sec 'grid-seq)
+	(slot-value sec 'free-seq1)
+	(slot-value sec 'free-seq1)
+	(slot-value sec 'free-seq1)))
+
+(defun seek-section-to (pos section)
+  (mapcar (lambda (seq)
+	    (if (> (sequence-tick-length seq)
+		   0)
+		(setf (ticks-index seq)
+		      (mod (- pos 1)
+			   (sequence-tick-length seq)))
+		(setf (ticks-index seq)
+		      0)))
+	  (get-sequences section)))
 
 (defun new-section ()
   (make-instance 'section))
@@ -56,14 +73,20 @@
 
 (defun section-a (up-or-down)
   (format t "section-0 ~a~%" up-or-down)
+  (when (eq up-or-down :press)
+    (seek-section-to 0 (car *sguenz-sections*)))
   (setf *current-section* (car *sguenz-sections*)))
 
 (defun section-b (up-or-down)
   (format t "section-1 ~a~%" up-or-down)
+  (when (eq up-or-down :press)
+    (seek-section-to 0 (cadr *sguenz-sections*)))
   (setf *current-section* (cadr *sguenz-sections*)))
 
 (defun section-c (up-or-down)
   (format t "section-2 ~a~%" up-or-down)
+  (when (eq up-or-down :press)
+    (seek-section-to 0 (caddr *sguenz-sections*)))
   (setf *current-section* (caddr *sguenz-sections*)))
 
 (defun phrase-selector (phrase-group phrase-idx)
@@ -72,7 +95,10 @@
     (when (eq :press up-or-down)
       (setf *active-phrase* phrase-idx)
       (loop-cycle (get-active-phrase))
-      (print 'monkey))))
+      (setf (sequence-tick-length (get-active-phrase))
+	    (* *master-beat-divisor*
+	       (round (ticks-index (get-active-phrase))
+		      *master-beat-divisor*))))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
@@ -123,12 +149,12 @@
 (defun scrub-to-quantised-point (chan)
   (setf (ticks-index (get-active-phrase))
 	(nth-value 1 (floor (+ (* *master-beat-divisor*
-				  (round (- (* chan (sequence-tick-length (get-active-phrase)))
-					    (ticks-index (get-active-phrase)))
+				  (round (- (* chan (sequence-tick-length (get-active-grid)))
+					    (ticks-index (get-active-grid)))
 					 *master-beat-divisor*))
-			       (ticks-index (get-active-phrase)))
-			    (* (grid-length (get-active-phrase))
-			       (sequence-tick-length (get-active-phrase)))))))
+			       (ticks-index (get-active-grid)))
+			    (* (grid-length (get-active-grid))
+			       (sequence-tick-length (get-active-grid)))))))
 
 (defmethod transmit-gesture ((mess null))
   "don't blow up")

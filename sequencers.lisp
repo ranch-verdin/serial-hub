@@ -47,6 +47,12 @@
   (* (clock-divisor seq)
      (grid-length seq)))
 
+(defgeneric (setf sequence-tick-length) (tick-length seq))
+(defmethod (setf sequence-tick-length) (tick-length (seq grid-sequence))
+  (setf (grid-length seq)
+	(* (beat-divisor seq)
+	   (/ tick-length *master-beat-divisor*))))
+
 (defgeneric do-tick (gesture-sequence))
 
 (defmethod do-tick ((seq grid-sequence))
@@ -95,7 +101,6 @@
 					    collect (format nil "note~a" i))))))
     (grid-set-column seq 0 '(t t :emph nil))
     (grid-set-element seq 1 3 :emph)
-    (print (read-gestures seq))
     (loop repeat (+ 6 (* 16 6))
        do (do-tick seq))
     (read-gestures seq)))
@@ -204,6 +209,13 @@
    (rec-state :initarg :rec-state
 	      :initform nil
 	      :accessor rec-state)))
+
+(defmethod (setf sequence-tick-length) (tick-length (seq free-sequence))
+  (loop for i from tick-length to (fill-pointer (fs-memory seq))
+     do (setf (aref (fs-memory seq) i)
+	      nil))
+  (setf (fill-pointer (fs-memory seq))
+	tick-length))
 
 (defmethod sequence-tick-length ((seq free-sequence))
   (fill-pointer (fs-memory seq)))
