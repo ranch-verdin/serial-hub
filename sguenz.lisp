@@ -34,6 +34,11 @@
 	(slot-value sec 'free-seq1)
 	(slot-value sec 'free-seq1)))
 
+(defvar *queued-section* nil)
+
+(defun enqueue-section (idx)
+  (setf *queued-section* (nth idx *sguenz-sections*)))
+
 (defun seek-section-to (pos section)
   (mapcar (lambda (seq)
 	    (if (> (sequence-tick-length seq)
@@ -74,20 +79,17 @@
 (defun section-a (up-or-down)
   (format t "section-0 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (seek-section-to 0 (car *sguenz-sections*)))
-  (setf *current-section* (car *sguenz-sections*)))
+    (enqueue-section 0)))
 
 (defun section-b (up-or-down)
   (format t "section-1 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (seek-section-to 0 (cadr *sguenz-sections*)))
-  (setf *current-section* (cadr *sguenz-sections*)))
+    (enqueue-section 1)))
 
 (defun section-c (up-or-down)
   (format t "section-2 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (seek-section-to 0 (caddr *sguenz-sections*)))
-  (setf *current-section* (caddr *sguenz-sections*)))
+    (enqueue-section 2)))
 
 (defun phrase-selector (phrase-group phrase-idx)
   (lambda (up-or-down)
@@ -165,6 +167,9 @@
 (defun get-active-grid ()
   (slot-value *current-section* 'grid-seq))
 
+(defvar *last-grid-draw* (get-internal-utime))
+(defvar *draw-frame-length* 20000)
+
 (defun inc-ticker ()
   (prog1 (values (do-tick (slot-value *current-section* 'grid-seq))
 		 (do-tick (slot-value *current-section* 'free-seq1))
@@ -177,7 +182,14 @@
 		  (slot-value *current-section* 'free-seq1)
 		  (slot-value *current-section* 'free-seq2)
 		  (slot-value *current-section* 'free-seq3)))
-    (when (grid-crossing-point (get-active-grid))
+    (when (and (= (ticks-index (get-active-grid))
+		  (- (sequence-tick-length (get-active-grid))
+		     1))
+	       *queued-section*)
+      (seek-section-to 0 *queued-section*)
+      (setf *current-section* *queued-section*)
+      (setf *queued-section* nil))
+    (when (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*))
       (draw-grid))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))

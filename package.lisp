@@ -75,4 +75,4 @@
 
 
 (defpackage #:sguenz
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser #:sequencers))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser #:sequencers #:serial-hub-utils))

@@ -248,7 +248,11 @@
   nil)
 
 (defmethod note-off ((note-on note-on-midi-message))
-  (make-instance 'note-off-midi-message))
+  (let ((ret (make-instance 'note-off-midi-message
+			    :raw-midi (copy-list (slot-value note-on
+							     'midi-packetiser::raw-midi)))))
+    (rplaca (slot-value ret 'midi-packetiser::raw-midi)
+	    (logand #b1110 (car (slot-value ret 'midi-packetiser::raw-midi))))))
 
 (defmethod read-gestures ((seq free-sequence))
   (loop for gesture in (aref (fs-memory seq)
@@ -277,7 +281,14 @@
     (when (>= (ticks-index seq)
 	      (sequence-tick-length seq))
       (case (play-state seq)
-	(:push-extend (incf (fill-pointer (fs-memory seq))))
+	(:push-extend (if (< (sequence-tick-length seq)
+			     *max-free-seq-length*)
+			  (incf (sequence-tick-length seq))
+			  (progn (break "monkey")
+				 (setf (play-state seq)
+				       :repeat)
+				 (setf (sequence-tick-length seq)
+				       0))))
 	(:repeat (setf (ticks-index seq)
 		       (- (ticks-index seq)
 			  (sequence-tick-length seq)))
