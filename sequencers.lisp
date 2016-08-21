@@ -362,6 +362,12 @@
   (drain-hanging-rec-tones seq)
   (setf (rec-state seq) nil))
 
+(defmethod rec-toggle ((seq free-sequence))
+  (if (rec-state seq)
+      (rec-unarm seq)
+      (rec-arm seq)))
+
+
 (defmethod loop-cycle ((seq free-sequence))
   (case (play-state seq)
     (:repeat (play-stop seq))

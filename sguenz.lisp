@@ -91,26 +91,33 @@
   (when (eq up-or-down :press)
     (enqueue-section 2)))
 
+(defparameter *function-button-state* nil)
+
 (defun phrase-selector (phrase-group phrase-idx)
   (lambda (up-or-down)
     (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
     (when (eq :press up-or-down)
       (let* ((pushed-section (nth phrase-group *sguenz-sections*))
 	     (pushed-sequence (nth phrase-idx (get-sequences pushed-section)))
-	     (play-state-before (play-state pushed-sequence))
-	     (hung-gestures (loop-cycle pushed-sequence)))
-	(print (list pushed-section pushed-sequence))
-	(when (eq pushed-section *current-section*)
-	  (mapcar #'transmit-gesture hung-gestures)
+	     (play-state-before (play-state pushed-sequence)))
+	(case *function-button-state*
+	  (:play (play-repeat pushed-sequence))
+	  (:stop (play-stop pushed-sequence))
+	  (:rec (rec-toggle pushed-sequence))
+	  (:del (erase-sequence pushed-sequence))
+	  (otherwise (let ((hung-gestures (loop-cycle pushed-sequence)))
+		       (when (eq pushed-section *current-section*)
+			 (mapcar #'transmit-gesture hung-gestures)
 
-	  ;; XXX quick hack to quantise free-sequence lengths to 1 beat
-	  (when (eq play-state-before :push-extend)
-	    (setf (sequence-tick-length pushed-sequence)
-		  (* *master-beat-divisor*
-		     (max 1
-			  (round (ticks-index pushed-sequence)
-				 *master-beat-divisor*))))
-	    (setf *active-phrase* phrase-idx)))))))
+			 ;; XXX quick hack to quantise free-sequence
+			 ;; lengths to 1 beat
+			 (when (eq play-state-before :push-extend)
+			   (setf (sequence-tick-length pushed-sequence)
+				 (* *master-beat-divisor*
+				    (max 1
+					 (round (ticks-index pushed-sequence)
+						*master-beat-divisor*))))
+			   (setf *active-phrase* phrase-idx))))))))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
@@ -204,15 +211,25 @@
   (loop for x below 16 collect (ticker-strip x)))
 
 (defun play (up-or-down)
-  (format t "play ~a~%" up-or-down))
+  (format t "play ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *function-button-state* :play)
+      (setf *function-button-state* nil)))
 (defun stop (up-or-down)
-  (format t "stop ~a~%" up-or-down))
-(defun overdub (up-or-down)
-  (format t "overdub ~a~%" up-or-down))
-(defun overwrite (up-or-down)
-  (format t "overwrite ~a~%" up-or-down))
+  (format t "stop ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *function-button-state* :stop)
+      (setf *function-button-state* nil)))
+(defun rec (up-or-down)
+  (format t "overdub ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *function-button-state* :rec)
+      (setf *function-button-state* nil)))
 (defun del (up-or-down)
-  (format t "del ~a~%" up-or-down))
+  (format t "del ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *function-button-state* :del)
+      (setf *function-button-state* nil)))
 (defun copy (up-or-down)
   (format t "copy ~a~%" up-or-down))
 (defun timebase (up-or-down)
@@ -234,8 +251,8 @@
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
 (defparameter *function-buttons*
-  (list (list #'play #'stop #'overdub #'overwrite)
-	(list #'del #'copy #'timebase #'quantise)
+  (list (list #'play #'stop #'rec #'del)
+	(list #'overwrite #'copy #'timebase #'quantise)
 	(list #'mute #'stop-all
 	      #'emph
 	      #'toggle-arrange-or-rec-mode)))

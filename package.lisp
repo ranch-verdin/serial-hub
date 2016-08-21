@@ -72,7 +72,7 @@
 	   #:do-tick #:erase-sequence #:copy-sequence
 	   #:play-push-extend #:play-repeat #:play-stop
 	   #:play-state #:rec-state #:empty-p
-	   #:rec-arm #:rec-unarm
+	   #:rec-arm #:rec-unarm #:rec-toggle
 	   #:loop-cycle #:grid-position))
 
 
