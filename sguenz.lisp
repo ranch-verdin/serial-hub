@@ -100,11 +100,11 @@
 	(when (eq pushed-section *current-section*)
 	  (setf *active-phrase* phrase-idx)
 
-	  ;;WTF!?
-	  ;; (setf (sequence-tick-length (get-active-phrase))
-	  ;; 	(* *master-beat-divisor*
-	  ;; 	   (round (ticks-index (get-active-phrase))
-	  ;; 		  *master-beat-divisor*)))
+	  ;; XXX quick hack to quantise free-sequence lengths to 1 beat
+	  (setf (sequence-tick-length (get-active-phrase))
+	  	(* *master-beat-divisor*
+	  	   (round (ticks-index (get-active-phrase))
+	  		  *master-beat-divisor*)))
 	  )))))
 
 (defparameter *phrase-section-layout*
