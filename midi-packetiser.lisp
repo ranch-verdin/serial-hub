@@ -185,3 +185,20 @@
 			:if-exists :overwrite
 			:element-type '(unsigned-byte 8))
   (loop (read-midi-message stream)))
+
+
+(defun midi-note= (x y)
+  (and (= (car (slot-value x 'raw-midi))
+	  (car (slot-value y 'raw-midi)))
+       (= (cadr (slot-value x 'raw-midi))
+	  (cadr (slot-value y 'raw-midi)))))
+
+(defun make-midi-note-off (chan key &optional (velocity 0))
+  (make-instance 'note-off-midi-message
+		 :raw-midi (list (pack-nibbles #b1000 chan)
+				 key velocity)))
+
+(defun make-midi-note-on (chan key &optional (velocity 127))
+  (make-instance 'note-on-midi-message
+		 :raw-midi (list (pack-nibbles #b1001 chan)
+				 key velocity)))

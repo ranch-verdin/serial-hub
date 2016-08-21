@@ -243,11 +243,16 @@
 
 ;; These are empty classes to denote a generalised type of 'note' that
 ;; can be either noteon or noteoff, e.g midi however this allows the
-;; same method to be reused by, e.g an osc synth
-(defmethod record-gesture :around ((gesture note-on-midi-message) (seq free-sequence))
+(defmethod record-gesture :after ((gesture note-on-midi-message) (seq free-sequence))
   (when (armed-and-ready seq)
-    (push gesture (hanging-rec-tones seq)))
-  (call-next-method))
+    (push (note-off gesture)
+	  (hanging-rec-tones seq))))
+
+(defmethod record-gesture :after ((gesture note-off-midi-message) (seq free-sequence))
+  (when (armed-and-ready seq)
+    (setf (hanging-rec-tones seq)
+	  (remove gesture (hanging-rec-tones seq)
+		  :test #'midi-note=))))
 
 (defgeneric note-off (note-on))
 (defmethod note-off (thing)
@@ -259,24 +264,31 @@
 			    :raw-midi (copy-list (slot-value note-on
 							     'midi-packetiser::raw-midi)))))
     (rplaca (slot-value ret 'midi-packetiser::raw-midi)
-	    (logand #b1110 (car (slot-value ret 'midi-packetiser::raw-midi))))))
+	    (logand #b11100000 (car (slot-value ret 'midi-packetiser::raw-midi))))
+    ret))
 
 (defmethod read-gestures ((seq free-sequence))
-  (loop for gesture in (aref (fs-memory seq)
-			     (ticks-index seq))
-     do (push gesture (hanging-play-tones seq)) ;; XXX hack! we can
-						;; only read each
-						;; gesture once - badish..
-     collect gesture))
+  (reverse
+   (loop for gesture in (aref (fs-memory seq)
+			      (ticks-index seq))
+      ;; XXX hack! we can only read each gesture once - badish..
+      do (typecase gesture
+	   (note-on-midi-message (push (note-off gesture)
+				       (hanging-play-tones seq)))
+	   (note-off-midi-message (setf (hanging-play-tones seq)
+					(remove gesture (hanging-play-tones seq)
+						:test #'midi-note=))))
+      collect gesture)))
 
 (defmethod drain-hanging-rec-tones ((seq free-sequence))
   (loop for rec-tone in (hanging-rec-tones seq)
-     do (record-gesture (note-off rec-tone) seq))
+     do (record-gesture rec-tone seq))
   (setf (hanging-rec-tones seq) nil))
+
 (defmethod drain-hanging-play-tones ((seq free-sequence))
-  (loop for play-tone in (hanging-play-tones seq)
-     collect (note-off play-tone))
-  (setf (hanging-play-tones seq) nil))
+  (prog1 (loop for play-tone in (hanging-play-tones seq)
+	    collect play-tone)
+    (setf (hanging-play-tones seq) nil)))
 
 (defmethod drain-hanging-tones ((seq free-sequence))
   (drain-hanging-rec-tones seq)
@@ -345,8 +357,8 @@
   (setf (rec-state seq) :overdub))
 
 (defmethod rec-unarm ((seq free-sequence))
-  (setf (rec-state seq) nil)
-  (drain-hanging-rec-tones seq))
+  (drain-hanging-rec-tones seq)
+  (setf (rec-state seq) nil))
 
 (defmethod loop-cycle ((seq free-sequence))
   (case (play-state seq)

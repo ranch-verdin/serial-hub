@@ -30,7 +30,8 @@
 	   ;; #:lo-nibble #:hi-bit
 	   ;; #:pack-nibbles #:parse-packet
 	   #:write-midi-message #:with-midi-out #:*default-midi-out-stream*
-	   #:read-midi-message #:with-midi-in #:*default-midi-in-stream*))
+	   #:read-midi-message #:with-midi-in #:*default-midi-in-stream*
+	   #:midi-note= #:make-midi-note-off #:make-midi-note-on))
 
 (defpackage #:boomerang
   (:use #:cl #:aleph-serial #:serial-hub-utils))

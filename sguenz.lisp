@@ -96,7 +96,8 @@
     (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
     (when (eq :press up-or-down)
       (let ((pushed-section (nth phrase-group *sguenz-sections*)))
-	(loop-cycle (nth phrase-idx (get-sequences pushed-section)))
+	(mapcar #'transmit-gesture
+		(loop-cycle (nth phrase-idx (get-sequences pushed-section))))
 	(when (eq pushed-section *current-section*)
 	  (setf *active-phrase* phrase-idx)
 
