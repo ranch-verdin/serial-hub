@@ -95,18 +95,22 @@
   (lambda (up-or-down)
     (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
     (when (eq :press up-or-down)
-      (let ((pushed-section (nth phrase-group *sguenz-sections*)))
-	(mapcar #'transmit-gesture
-		(loop-cycle (nth phrase-idx (get-sequences pushed-section))))
+      (let* ((pushed-section (nth phrase-group *sguenz-sections*))
+	     (pushed-sequence (nth phrase-idx (get-sequences pushed-section)))
+	     (play-state-before (play-state pushed-sequence))
+	     (hung-gestures (loop-cycle pushed-sequence)))
+	(print (list pushed-section pushed-sequence))
 	(when (eq pushed-section *current-section*)
-	  (setf *active-phrase* phrase-idx)
+	  (mapcar #'transmit-gesture hung-gestures)
 
 	  ;; XXX quick hack to quantise free-sequence lengths to 1 beat
-	  (setf (sequence-tick-length (get-active-phrase))
-	  	(* *master-beat-divisor*
-	  	   (round (ticks-index (get-active-phrase))
-	  		  *master-beat-divisor*)))
-	  )))))
+	  (when (eq play-state-before :push-extend)
+	    (setf (sequence-tick-length pushed-sequence)
+		  (* *master-beat-divisor*
+		     (max 1
+			  (round (ticks-index pushed-sequence)
+				 *master-beat-divisor*))))
+	    (setf *active-phrase* phrase-idx)))))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a

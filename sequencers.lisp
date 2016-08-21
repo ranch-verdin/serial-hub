@@ -341,11 +341,13 @@
 
 (defmethod play-push-extend ((seq free-sequence))
   (setf (play-state seq)
-	:push-extend))
+	:push-extend)
+  nil)
 
 (defmethod play-repeat ((seq free-sequence))
   (setf (play-state seq)
-	:repeat))
+	:repeat)
+  nil)
 
 (defmethod play-stop ((seq free-sequence))
   "returns any hanging tones we need to emit to avoid 'stuck' notes"
@@ -368,4 +370,5 @@
     (otherwise (if (= 0 (fill-pointer (fs-memory seq)))
 		   (progn (rec-arm seq)
 			  (play-push-extend seq))
-		   (play-repeat seq)))))
+		   (progn (setf (ticks-index seq) 0)
+			  (play-repeat seq))))))
