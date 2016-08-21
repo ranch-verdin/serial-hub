@@ -332,6 +332,18 @@
   (monome-set-led-intensity 6 2 (if (eq *emph-state* :emph)
 				    15
 				    6)) ;; emph button
+  (monome-set-led-intensity 4 0 (if (eq *function-button-state* :play)
+				    15
+				    8))
+  (monome-set-led-intensity 5 0 (if (eq *function-button-state* :stop)
+				    15
+				    4))
+  (monome-set-led-intensity 6 0 (if (eq *function-button-state* :rec)
+				    15
+				    8))
+  (monome-set-led-intensity 7 0 (if (eq *function-button-state* :del)
+				    15
+				    4))
   )
 
 (defun draw-section-sequence-states ()
