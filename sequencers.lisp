@@ -264,7 +264,7 @@
 			    :raw-midi (copy-list (slot-value note-on
 							     'midi-packetiser::raw-midi)))))
     (rplaca (slot-value ret 'midi-packetiser::raw-midi)
-	    (logand #b11100000 (car (slot-value ret 'midi-packetiser::raw-midi))))
+	    (logand #b11101111 (car (slot-value ret 'midi-packetiser::raw-midi))))
     ret))
 
 (defmethod read-gestures ((seq free-sequence))
