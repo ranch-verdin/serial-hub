@@ -133,10 +133,6 @@
 			(phrase-selector 2 x))
 		      '(1 2 3)))))
 
-;; if we hold and press left-most, then a button in middle,
-;; the pattern length can be changed
-(defvar *setting-pattern-length* nil)
-
 (defun get-active-phrase ()
   (cond ((= *active-phrase* 0)
 	 (slot-value *current-section* 'grid-seq))
@@ -151,19 +147,19 @@
   (setf (grid-length (get-active-grid))
 	dur))
 
+(defparameter *ticker-strip-modifier-state* nil)
+
 (defun ticker-strip (chan)
   (lambda (up-or-down)
-    (case up-or-down
-      (:press (if (= chan 0)
-		  (setf *setting-pattern-length* t)
-		  (if *setting-pattern-length*
-		      (progn (set-quantised-pattern-duration (+ chan 1))
-			     (setf *setting-pattern-length* nil))
-		      (scrub-to-quantised-point chan))))
-      (:release (when (= chan 0)
-		  (when *setting-pattern-length*
-		    (setf *setting-pattern-length* nil)
-		    (scrub-to-quantised-point chan)))))))
+    (when (eq :press up-or-down)
+      (case *ticker-strip-modifier-state*
+	(:swing (setf (swing-ratio (get-active-grid))
+		      (/ chan 16)))
+	(:timebase (setf (beat-divisor (get-active-grid))
+			 (+ chan 1)))
+	(:grid-length (set-quantised-pattern-duration
+		       (+ 1 chan)))
+	(otherwise (scrub-to-quantised-point chan))))))
 
 (defun scrub-to-quantised-point (chan)
   (setf (grid-position (get-active-grid))
@@ -179,7 +175,7 @@
   (slot-value *current-section* 'grid-seq))
 
 (defvar *last-grid-draw* (get-internal-utime))
-(defvar *draw-frame-length* 20000)
+(defparameter *draw-frame-length* 50000)
 
 (defun inc-ticker ()
   (prog1 (values (do-tick (slot-value *current-section* 'grid-seq))
@@ -193,15 +189,16 @@
 		  (slot-value *current-section* 'free-seq1)
 		  (slot-value *current-section* 'free-seq2)
 		  (slot-value *current-section* 'free-seq3)))
-    (when (and (= (ticks-index (get-active-grid))
-		  (- (sequence-tick-length (get-active-grid))
-		     1))
+    (when (and (= (round (ticks-index (get-active-grid)))
+		  (round (- (sequence-tick-length (get-active-grid))
+			    1)))
 	       *queued-section*)
       (seek-section-to 0 *queued-section*)
       (setf *current-section* *queued-section*)
       (setf *queued-section* nil))
     (when (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*))
-      (draw-grid))))
+      (draw-grid)
+      (setf *last-grid-draw* (get-internal-utime)))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
   (declare (ignore mess))
@@ -230,12 +227,25 @@
   (if (eq :press up-or-down)
       (setf *function-button-state* :del)
       (setf *function-button-state* nil)))
-(defun copy (up-or-down)
-  (format t "copy ~a~%" up-or-down))
+(defun appending-copy (up-or-down)
+  (format t "appending copy ~a~%" up-or-down))
+(defun layering-copy (up-or-down)
+  (format t "appending copy ~a~%" up-or-down))
+(defun set-grid-length (up-or-down)
+  (format t "timebase ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *ticker-strip-modifier-state* :grid-length)
+      (setf *ticker-strip-modifier-state* nil)))
 (defun timebase (up-or-down)
-  (format t "timebase ~a~%" up-or-down))
-(defun quantise (up-or-down)
-  (format t "quantise ~a~%" up-or-down))
+  (format t "timebase ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *ticker-strip-modifier-state* :timebase)
+      (setf *ticker-strip-modifier-state* nil)))
+(defun swing (up-or-down)
+  (format t "swing ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *ticker-strip-modifier-state* :swing)
+      (setf *ticker-strip-modifier-state* nil)))
 (defun mute (up-or-down)
   (format t "mute ~a~%" up-or-down))
 (defun stop-all (up-or-down)
@@ -246,16 +256,13 @@
 	  (case *emph-state*
 	    (:emph t)
 	    (t :emph)))))
-
 (defun toggle-arrange-or-rec-mode (up-or-down)
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
 (defparameter *function-buttons*
   (list (list #'play #'stop #'rec #'del)
-	(list #'overwrite #'copy #'timebase #'quantise)
-	(list #'mute #'stop-all
-	      #'emph
-	      #'toggle-arrange-or-rec-mode)))
+	(list #'set-grid-length #'timebase #'swing #'emph)
+	(list #'mute #'stop-all #'layering-copy #'appending-copy)))
 
 (defparameter *emph-state* :emph)
 
@@ -312,38 +319,97 @@
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
 
+(defun factors (n &aux (lows '()) (highs '()))
+  (do ((limit (1+ (isqrt n))) (factor 1 (1+ factor)))
+      ((= factor limit)
+       (when (= n (* limit limit))
+         (push limit highs))
+       (remove-duplicates (nreconc lows highs)))
+    (multiple-value-bind (quotient remainder) (floor n factor)
+      (when (zerop remainder)
+        (push factor lows)
+        (push quotient highs)))))
+
 (defun draw-grid-seq-ticker ()
-  (monome-row-intensities 0 3
-			  (loop for i below 8
-			     collect (if (< i (grid-length (get-active-grid)))
-					 4
-					 0)))
-  (monome-row-intensities 8 3
-			  (loop for i from 8 below 16
-			     collect (if (< i (grid-length (get-active-grid)))
-					 4
-					 0)))
-  (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
-					 *master-beat-divisor*)
-				      (beat-divisor (get-active-grid))))
-			    3 15))
+  (let ((current-timebase (beat-divisor (get-active-grid)))
+	(current-pattern-length (grid-length (get-active-grid))))
+    (case *ticker-strip-modifier-state*
+      (:swing (monome-row-intensities 0 3
+				      (loop for i below 8
+					 collect i))
+	      (monome-row-intensities 8 3
+				      (loop for i below 8
+					 collect (+ i 8))))
+      (:timebase (monome-row-intensities 0 3
+					 (loop for i below 8
+					    collect (if (< i (grid-length (get-active-grid)))
+							4
+							0)))
+		 (monome-row-intensities 8 3
+					 (loop for i from 8 below 16
+					    collect (if (< i (grid-length (get-active-grid)))
+							4
+							0)))
+		 (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
+							*master-beat-divisor*)
+						     (beat-divisor (get-active-grid))))
+					   3 15)
+		 (loop for i in (factors current-pattern-length)
+		    do (monome-set-led-intensity (- i 1)  3 10)))
+      (:grid-length
+       (monome-row-intensities 0 3
+			       (loop for i below 8
+				  collect (floor (* (/ 15 current-timebase)
+						    (mod i current-timebase)))))
+       (monome-row-intensities 8 3
+			       (loop for i below 8
+				  collect (floor (* (/ 15 current-timebase)
+						    (mod (+ i 8) current-timebase)))))
+       (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
+					      *master-beat-divisor*)
+					   (beat-divisor (get-active-grid))))
+				 3 15))
+      (otherwise
+       (monome-row-intensities 0 3
+			       (loop for i below 8
+				  collect (if (< i (grid-length (get-active-grid)))
+					      4
+					      0)))
+       (monome-row-intensities 8 3
+			       (loop for i from 8 below 16
+				  collect (if (< i (grid-length (get-active-grid)))
+					      4
+					      0)))
+       (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
+					      *master-beat-divisor*)
+					   (beat-divisor (get-active-grid))))
+				 3 15)))))
 
 (defun draw-utility-button-states ()
-  (monome-set-led-intensity 6 2 (if (eq *emph-state* :emph)
-				    15
-				    6)) ;; emph button
   (monome-set-led-intensity 4 0 (if (eq *function-button-state* :play)
 				    15
-				    8))
+				    6))
   (monome-set-led-intensity 5 0 (if (eq *function-button-state* :stop)
 				    15
-				    4))
+				    8))
   (monome-set-led-intensity 6 0 (if (eq *function-button-state* :rec)
 				    15
-				    8))
+				    10))
   (monome-set-led-intensity 7 0 (if (eq *function-button-state* :del)
 				    15
-				    4))
+				    12))
+  (monome-set-led-intensity 4 1 (if (eq *ticker-strip-modifier-state* :grid-length)
+				    15
+				    12))
+  (monome-set-led-intensity 5 1 (if (eq *ticker-strip-modifier-state* :timebase)
+				    15
+				    10))
+  (monome-set-led-intensity 6 1 (if (eq *ticker-strip-modifier-state* :swing)
+				    15
+				    8))
+  (monome-set-led-intensity 7 1 (if (eq *emph-state* :emph)
+				    15
+				    6)) ;; emph button
   )
 
 (defun draw-section-sequence-states ()
@@ -363,6 +429,7 @@
 
 (defun draw-grid ()
   ;; (monome-set-all 0)
+  ;; (return-from draw-grid)
   (draw-step-sequencer)
   (draw-grid-seq-ticker)
   (draw-utility-button-states)
