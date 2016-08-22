@@ -1,7 +1,12 @@
 (in-package :boomerang)
 
-(defun midi-sniff (&optional (midi-port "/dev/midi"))
-  (with-open-file (stream midi-port
+(defparameter *midi-dev* "/dev/midi4")
+(defun setup-boomerang-dev (&optional (dev-file *midi-dev*))
+  (external-program:run "stty" (list "-F" dev-file "115200" "sane" "-brkint" "-icrnl" "-opost" "-onlcr" "-isig" "-icanon" "-iexten" "-echo" "-echoe")))
+
+(defun midi-sniff (&optional (midi-dev *midi-dev*))
+  (setup-boomerang-dev midi-dev)
+  (with-open-file (stream midi-dev
 			  :direction :io
 			  :if-exists :overwrite
 			  :element-type '(unsigned-byte 8))
@@ -13,7 +18,6 @@
 
 (defvar *rang-output-stream* nil)
 
-(defvar *midi-dev* "/dev/midi4")
 
 (defmacro with-rang-output-stream (&body body )
   `(with-open-file (*rang-output-stream* *midi-dev*
@@ -106,33 +110,48 @@
 (defun stop-ticker ()
   (ignore-errors (bt:destroy-thread *ticker-thread*)))
 
-(defparameter *clock-subdivision* (* 16 2))
+(defparameter *clock-subdivision* 48)
 
 (defun usleep (usecs)
   (when (> usecs 0)
     (sleep (/ usecs 1000000))))
 
-(defun aleph-tick-func ()
+(defun boomerang-tick-func ()
   ;; (serial-trigger-param 0 1)
-  (serial-trigger-in 51 1)
+  (calispel:! serial-hub-utils:*reader-ochan*
+	      (make-instance 'midi-packetiser:clock-tick-midi-message))
   ;; (print 'tick)
   )
+
+(defparameter *boomerang-taptempo-chan* (make-nonblock-buf-channel))
+(defparameter *last-tap* (get-internal-utime))
+(defparameter *max-tap-time* 1500000)
 
 (defun start-ticker (loop-origin loop-duration)
   (stop-ticker)
   (setf *ticker-thread*
 	(bt:make-thread
 	 (lambda ()
-	   (with-aleph-output-stream
-	     (loop
-		(incf loop-origin loop-duration)
-		(let ((div *clock-subdivision*))
-		  (loop for i below div
-		     do
-		       (aleph-tick-func)
-		       (usleep (/ (- loop-origin
-				     (get-internal-utime))
-				  (- div i)))))))))))
+	   (loop
+	      (incf loop-origin loop-duration)
+	      (let ((div *clock-subdivision*))
+		(loop for i below div
+		   do
+		     (multiple-value-bind (value success?)
+			 (calispel:? *boomerang-taptempo-chan* 0)
+		       (when success?
+			 (let ((tap-intvl (- (get-internal-utime)
+					     *last-tap*)))
+			   (when (< tap-intvl *max-tap-time*)
+			     (setf *clock-subdivision*
+				   (* 24
+				      (round (/ *brosync-loop-duration*
+						(- value *last-tap*)))))))
+			 (setf *last-tap* (get-internal-utime))))
+		     (boomerang-tick-func)
+		     (usleep (/ (- loop-origin
+				   (get-internal-utime))
+				(- div i))))))))))
 
 (defun brosync-stopped-slave-handle-message (message recv-time)
   (case message
@@ -170,7 +189,7 @@
 				(stop-ticker))
     (#.+brosync-sync-message+)))
 
-(defun brosync-listen ()
+(defun start-brosync-sync ()
   (with-rang-input-stream
     (let ((state :open)
 	  (sysex-counter 0)
@@ -190,4 +209,3 @@
 		       (progn (brosync-handle-message new-byte recv-time)
 			      (setf packet nil)
 			      (setf state :open))))))))))
-

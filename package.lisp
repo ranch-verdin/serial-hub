@@ -34,7 +34,8 @@
 	   #:midi-note= #:make-midi-note-off #:make-midi-note-on))
 
 (defpackage #:boomerang
-  (:use #:cl #:aleph-serial #:serial-hub-utils))
+  (:use #:cl #:aleph-serial #:serial-hub-utils)
+  (:export #:brosync-listen #:*boomerang-taptempo-chan*))
 
 (defpackage #:midi-glue
   (:use #:cl #:cffi #:midi-packetiser #:optima #:optima.extra #:calispel
@@ -77,4 +78,4 @@
 
 
 (defpackage #:sguenz
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser #:sequencers #:serial-hub-utils))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:midi-packetiser #:sequencers #:serial-hub-utils #:boomerang))

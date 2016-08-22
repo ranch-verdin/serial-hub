@@ -313,8 +313,11 @@
 	(y (slot-value event 'y)))
     (funcall (or (nth x (nth y *whole-grid*))
 		 (lambda (foo)
-		   (when (eq foo :press)
-		     (inc-ticker))))
+		   (when (eq foo :press);; xx hack - just send
+					;; boomerang taptempo on
+					;; unused buttons for now
+		     (calispel:! *boomerang-taptempo-chan*
+				 (get-internal-utime)))))
 	     (typecase event
 	       (monome-button-press :press)
 	       (monome-button-release :release)))))
