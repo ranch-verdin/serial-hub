@@ -129,7 +129,7 @@
 		      (build-non-divisible-lookup-table mb mm))))
     res))
 
-(defparameter *non-divisible-lookup-tables* (build-non-divisible-lookup-tables 15 96))
+(defparameter *non-divisible-lookup-tables* (build-non-divisible-lookup-tables 16 96))
 
 (defun grid-crossing-point (seq &optional (master-clock-divisor *master-beat-divisor*))
   (multiple-value-bind (int-ticks frac-ticks) (floor (floor (ticks-index seq)) master-clock-divisor)
