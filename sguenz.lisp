@@ -354,8 +354,10 @@
 							*master-beat-divisor*)
 						     (beat-divisor (get-active-grid))))
 					   3 15)
+		 (monome-set-led-intensity (- current-timebase 1)
+					   3 15)
 		 (loop for i in (factors current-pattern-length)
-		    do (monome-set-led-intensity (- i 1)  3 10)))
+		    do (monome-set-led-intensity (- i 1)  3 8)))
       (:grid-length
        (monome-row-intensities 0 3
 			       (loop for i below 8
