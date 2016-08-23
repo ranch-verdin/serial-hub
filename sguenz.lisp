@@ -446,19 +446,19 @@
   (draw-utility-button-states)
   (draw-section-sequence-states))
 
-(defvar *cntrl-thread* nil)
+(defvar *sguenz-thread* nil)
 
 (defun start-sguenz-app ()
-  (assert (null *cntrl-thread*))
-  (setf *cntrl-thread*
+  (assert (null *sguenz-thread*))
+  (setf *sguenz-thread*
 	(bt:make-thread (lambda ()
 			  (with-midi-out (*default-midi-out-stream* "/dev/snd/midiC1D0")
 			    (with-monome-output-stream ()
 			      (unwind-protect
 				   (loop (handle-event (? *reader-ochan*)))
-				(setf *cntrl-thread* nil)))))
-			:name "cntrl-app")))
+				(setf *sguenz-thread* nil)))))
+			:name "sguenz-app")))
 
 (defun stop-sguenz-app ()
-  (bt:destroy-thread *cntrl-thread*)
-  (setf *cntrl-thread* nil))
+  (bt:destroy-thread *sguenz-thread*)
+  (setf *sguenz-thread* nil))
