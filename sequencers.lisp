@@ -193,6 +193,13 @@
        do
 	 (format t "grid point = ~a~%" gc))))
 
+(defmethod erase-sequence ((seq grid-sequence))
+  (let ((dims (array-dimensions (grid seq))))
+    (loop for i below (car dims)
+	 do (loop for j below (cadr dims)
+	       do (setf (aref (grid seq) i j)
+			nil)))))
+
 (defvar *max-free-seq-length* (* *master-beat-divisor* 150))
 
 (defclass free-sequence (gesture-sequence)

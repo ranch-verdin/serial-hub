@@ -79,17 +79,23 @@
 (defun section-a (up-or-down)
   (format t "section-0 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (enqueue-section 0)))
+    (case *function-button-state*
+      (:del (erase-sequence (get-active-grid)))
+      (otherwise (enqueue-section 0)))))
 
 (defun section-b (up-or-down)
   (format t "section-1 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (enqueue-section 1)))
+    (case *function-button-state*
+      (:del (erase-sequence (get-active-grid)))
+      (otherwise (enqueue-section 1)))))
 
 (defun section-c (up-or-down)
   (format t "section-2 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (enqueue-section 2)))
+    (case *function-button-state*
+      (:del (erase-sequence (get-active-grid)))
+      (otherwise (enqueue-section 2)))))
 
 (defparameter *function-button-state* nil)
 
