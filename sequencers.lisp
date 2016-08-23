@@ -385,3 +385,29 @@
 			  (play-push-extend seq))
 		   (progn (setf (ticks-index seq) 0)
 			  (play-repeat seq))))))
+
+(defmethod copy-sequence ((from grid-sequence) (to grid-sequence))
+  (loop for from-index below (grid-length from)
+     do (let ((to-index (/ (* from-index (beat-divisor from))
+			   (beat-divisor to))))
+	  (when (and (integerp to-index)
+		     (< to-index (car (array-dimensions (grid to)))))
+	    (loop for j below 4
+	       do (setf (aref (grid to) to-index j)
+			(aref (grid from) from-index j)))))))
+
+(defmethod copy-sequence ((from grid-sequence) (to free-sequence))
+  (let ((new-length (round (sequence-tick-length from))))
+    (setf (sequence-tick-length to) new-length)
+    (loop for from-index below (grid-length from)
+       do (let* ((to-index (round (* (/ from-index (beat-divisor from))
+				     *master-beat-divisor*))))
+	    (when (and (integerp to-index)
+		       (< to-index (sequence-tick-length to)))
+	      (loop for j below 4
+		 do (let ((gesture (resolve-gesture from j
+						    (aref (grid from)
+							  from-index j))))
+		      (when gesture
+			(push gesture
+			      (aref (fs-memory to) to-index))))))))))
