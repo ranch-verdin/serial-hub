@@ -182,6 +182,20 @@
 
 (defvar *last-grid-draw* (get-internal-utime))
 (defparameter *draw-frame-length* 50000)
+(defun calculate-display-flashes ()
+  (setf *flash-ticker* (mod (+ *flash-ticker* 1)
+			    *flash-divisor*))
+  (when (= 0 *flash-ticker*)
+    (print 'tick)
+    (setf *fast-flash* (not *fast-flash*))
+    (when *fast-flash*
+      (print 'tock)
+      (setf *slow-flash* (not *slow-flash*)))))
+(defparameter *flash-divisor* 5)
+(defparameter *flash-ticker* 0)
+
+(defparameter *fast-flash* nil)
+(defparameter *slow-flash* nil)
 
 (defun inc-ticker ()
   (prog1 (values (do-tick (slot-value *current-section* 'grid-seq))
@@ -203,6 +217,7 @@
       (setf *current-section* *queued-section*)
       (setf *queued-section* nil))
     (when (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*))
+      (calculate-display-flashes)
       (draw-grid)
       (setf *last-grid-draw* (get-internal-utime)))))
 
@@ -423,6 +438,16 @@
 				    6)) ;; emph button
   )
 
+(defun fast-flash (on-intensity &optional (off-intensity 0))
+  (if *fast-flash*
+      on-intensity
+      off-intensity))
+
+(defun slow-flash (on-intensity &optional (off-intensity 0))
+  (if *slow-flash*
+      on-intensity
+      off-intensity))
+
 (defun draw-section-sequence-states ()
   (loop for section in *sguenz-sections*
      for i below (length *sguenz-sections*)
@@ -435,7 +460,9 @@
 	  do (unless (empty-p seq)
 	       (monome-set-led-intensity j i
 					 (if (play-state seq)
-					     15
+					     (if (rec-state seq)
+						 (slow-flash 15)
+						 15)
 					     6))))))
 
 (defun draw-grid ()
