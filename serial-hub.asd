@@ -19,5 +19,6 @@
 	       (:file "serial-hub")
 	       (:file "sequencers")
 	       (:file "sguenz"))
-  :depends-on (:optima :cffi :iterate :external-program :calispel :cl-monome))
+  :depends-on (:optima :cffi :iterate :external-program :calispel
+		       :cl-monome :cl-ppcre))
 
