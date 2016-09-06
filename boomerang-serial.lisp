@@ -1,6 +1,8 @@
 (in-package :boomerang)
 
-(defparameter *midi-dev* "/dev/midi4")
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (defparameter *midi-dev* (get-oss-midi-dev-named "E-MU")))
+
 (defun setup-boomerang-dev (&optional (dev-file *midi-dev*))
   (external-program:run "stty" (list "-F" dev-file "115200" "sane" "-brkint" "-icrnl" "-opost" "-onlcr" "-isig" "-icanon" "-iexten" "-echo" "-echoe")))
 
@@ -19,8 +21,9 @@
 (defvar *rang-output-stream* nil)
 
 
-(defmacro with-rang-output-stream (&body body )
-  `(with-open-file (*rang-output-stream* *midi-dev*
+(defmacro with-rang-output-stream (&body body)
+  `(with-open-file (*rang-output-stream* (or *midi-dev*
+					     (get-oss-midi-dev-named "E-MU"))
 					 :direction :output
 					 :if-exists :overwrite
 					 :element-type '(unsigned-byte 8))
@@ -29,7 +32,8 @@
 (defvar *rang-input-stream* nil)
 
 (defmacro with-rang-input-stream (&body body)
-  `(with-open-file (*rang-input-stream* *midi-dev*
+  `(with-open-file (*rang-input-stream* (or *midi-dev*
+					     (get-oss-midi-dev-named "E-MU"))
 					:direction :io
 					:if-exists :overwrite
 					:element-type '(unsigned-byte 8))
@@ -189,7 +193,7 @@
 				(stop-ticker))
     (#.+brosync-sync-message+)))
 
-(defun start-brosync-sync ()
+(defun brosync-listener ()
   (with-rang-input-stream
     (let ((state :open)
 	  (sysex-counter 0)
@@ -209,3 +213,7 @@
 		       (progn (brosync-handle-message new-byte recv-time)
 			      (setf packet nil)
 			      (setf state :open))))))))))
+
+(defun start-brosync-sync ()
+  (bt:make-thread #'brosync-listener :name "brosync-sync"))
+

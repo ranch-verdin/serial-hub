@@ -236,10 +236,10 @@
 
 (defmethod armed-and-ready ((seq free-sequence))
   (and (eq (rec-state seq)
-		 :overdub)
-	     (> (ticks-index seq) 0)
-	     (<= (ticks-index seq)
-		 (fill-pointer (fs-memory seq)))))
+	   :overdub)
+       (> (ticks-index seq) 0)
+       (<= (ticks-index seq)
+	   (fill-pointer (fs-memory seq)))))
 
 (defmethod record-gesture (gesture (seq free-sequence))
   (warn "record-gesture quantisation not implemented yet...")
@@ -267,12 +267,11 @@
   nil)
 
 (defmethod note-off ((note-on note-on-midi-message))
-  (let ((ret (make-instance 'note-off-midi-message
-			    :raw-midi (copy-list (slot-value note-on
-							     'midi-packetiser::raw-midi)))))
-    (rplaca (slot-value ret 'midi-packetiser::raw-midi)
-	    (logand #b11101111 (car (slot-value ret 'midi-packetiser::raw-midi))))
-    ret))
+  (let ((orig-raw-midi (slot-value note-on
+				   'midi-packetiser::raw-midi)))
+    (make-instance 'note-off-midi-message
+		   :raw-midi (cons (logand #b11101111 (car orig-raw-midi))
+				   (copy-list (cdr orig-raw-midi))))))
 
 (defmethod read-gestures ((seq free-sequence))
   (reverse

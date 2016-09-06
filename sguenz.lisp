@@ -479,7 +479,8 @@
   (assert (null *sguenz-thread*))
   (setf *sguenz-thread*
 	(bt:make-thread (lambda ()
-			  (with-midi-out (*default-midi-out-stream* "/dev/snd/midiC1D0")
+			  (with-midi-out (*default-midi-out-stream*
+					  (get-virmidi 0))
 			    (with-monome-output-stream ()
 			      (unwind-protect
 				   (loop (handle-event (? *reader-ochan*)))

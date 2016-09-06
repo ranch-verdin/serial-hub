@@ -3,7 +3,9 @@
 (defpackage #:serial-hub-utils
   (:use #:cl #:calispel)
   (:export #:get-internal-utime #:make-nonblock-buf-channel
-	   #:drain-channel #:*reader-ochan*))
+	   #:drain-channel #:*reader-ochan*
+	   #:get-oss-midi-index-named #:get-oss-midi-dev-named
+	   #:get-virmidi))
 
 (defpackage #:aleph-serial
   (:use #:cl #:optima #:cffi #:iterate)
@@ -35,7 +37,7 @@
 
 (defpackage #:boomerang
   (:use #:cl #:aleph-serial #:serial-hub-utils)
-  (:export #:brosync-listen #:*boomerang-taptempo-chan*))
+  (:export #:start-brosync-sync #:*boomerang-taptempo-chan*))
 
 (defpackage #:midi-glue
   (:use #:cl #:cffi #:midi-packetiser #:optima #:optima.extra #:calispel

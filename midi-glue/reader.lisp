@@ -30,7 +30,7 @@
                           (sleep 0.1)
                           (unwind-protect
                                (handler-case
-                                   (with-midi-in (midi-stream "/dev/snd/midiC1D0")
+                                   (with-midi-in (midi-stream (get-virmidi 0))
                                      (loop
                                         (restart-case
                                             (midi-input midi-stream
