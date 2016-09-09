@@ -9,6 +9,7 @@
 	       (:file "serial-hub-utils")
 	       (:file "midi-packetiser")
 	       (:file "aleph-serial")
+	       (:file "gpio")
 	       (:file "boomerang-serial")
 	       (:module "midi-glue"
 			:components ((:file "reader")
@@ -20,5 +21,5 @@
 	       (:file "sequencers")
 	       (:file "sguenz"))
   :depends-on (:optima :cffi :iterate :external-program :calispel
-		       :cl-monome :cl-ppcre))
+		       :cl-monome :cl-ppcre :iolib))
 
