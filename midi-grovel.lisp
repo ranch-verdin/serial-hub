@@ -19,6 +19,8 @@
 (constant (tcsets2 "TCSETS2"))
 (constant (bother "BOTHER"))
 (constant (o-rdwr "O_RDWR"))
+(constant (o-rdonly "O_RDONLY"))
+(constant (o-wronly "O_WRONLY"))
 
 (cstruct termios2 "struct termios2"
 	 (c-iflag "c_iflag" :type :uint)
