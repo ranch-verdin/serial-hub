@@ -1,8 +1,5 @@
 (in-package :boomerang)
 
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (defparameter *midi-dev* (get-oss-midi-dev-named "E-MU")))
-
 (defun setup-boomerang-dev (&optional (dev-file *midi-dev*))
   (external-program:run "stty" (list "-F" dev-file "115200" "sane" "-brkint" "-icrnl" "-opost" "-onlcr" "-isig" "-icanon" "-iexten" "-echo" "-echoe")))
 
@@ -16,28 +13,11 @@
 
 (defun write-bytes (bytes stream)
   (dolist (byte bytes)
-    (write-byte byte stream)))
+    (write-midi-byte byte stream)))
 
 (defvar *rang-output-stream* nil)
 
-
-(defmacro with-rang-output-stream (&body body)
-  `(with-open-file (*rang-output-stream* (or *midi-dev*
-					     (get-oss-midi-dev-named "E-MU"))
-					 :direction :output
-					 :if-exists :overwrite
-					 :element-type '(unsigned-byte 8))
-     ,@body))
-
 (defvar *rang-input-stream* nil)
-
-(defmacro with-rang-input-stream (&body body)
-  `(with-open-file (*rang-input-stream* (or *midi-dev*
-					     (get-oss-midi-dev-named "E-MU"))
-					:direction :io
-					:if-exists :overwrite
-					:element-type '(unsigned-byte 8))
-     ,@body))
 
 (defun send-brosync-cmd (byte)
   (write-bytes `(240 0 31 127 15 ,byte)
@@ -194,13 +174,14 @@
     (#.+brosync-sync-message+)))
 
 (defun brosync-listener ()
-  (with-rang-input-stream
-    (let ((state :open)
+  (with-midi-uart-in (*rang-input-stream* "/dev/ttyS2")
+    (let ((*brosync-state* :empty)
+	  (state :open)
 	  (sysex-counter 0)
 	  (packet nil)
 	  (recv-time (get-internal-utime)))
       (loop 
-	 (let ((new-byte (read-byte *rang-input-stream*)))
+	 (let ((new-byte (read-midi-byte *rang-input-stream*)))
 	   (case state
 	     (:open (case new-byte
 		      (#.+sysex-begin+ (setf state :sysex)

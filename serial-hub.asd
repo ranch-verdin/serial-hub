@@ -22,5 +22,5 @@
 	       (:file "sguenz"))
   :depends-on (:optima :cffi
 		       :iterate :external-program :calispel
-		       :cl-monome :cl-ppcre :iolib))
+		       :cl-monome :cl-ppcre :iolib :cl-rtmidi))
 

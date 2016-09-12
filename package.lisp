@@ -3,8 +3,7 @@
 (defpackage #:serial-hub-utils
   (:use #:cl #:calispel)
   (:export #:get-internal-utime #:make-nonblock-buf-channel
-	   #:drain-channel #:*reader-ochan*
-	   #:get-virmidi))
+	   #:drain-channel #:*reader-ochan*))
 
 (defpackage #:aleph-serial
   (:use #:cl #:optima #:cffi #:iterate)
