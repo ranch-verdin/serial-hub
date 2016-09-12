@@ -123,7 +123,7 @@
 (defun boomerang-tick-func ()
   ;; (serial-trigger-param 0 1)
   (calispel:! serial-hub-utils:*reader-ochan*
-	      (make-instance 'midi-packetiser:clock-tick-midi-message))
+	      (make-instance 'cl-rtmidi:clock-tick-midi-message))
   ;; (print 'tick)
   )
 
