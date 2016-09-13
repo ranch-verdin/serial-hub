@@ -181,7 +181,7 @@
   (slot-value *current-section* 'grid-seq))
 
 (defvar *last-grid-draw* (get-internal-utime))
-(defparameter *draw-frame-length* 50000)
+(defparameter *draw-frame-length* 10000)
 (defun calculate-display-flashes ()
   (setf *flash-ticker* (mod (+ *flash-ticker* 1)
 			    *flash-divisor*))

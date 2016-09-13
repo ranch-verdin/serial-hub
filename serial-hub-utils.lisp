@@ -25,4 +25,5 @@
        us)))
 #+ccl
 (defun get-internal-utime ()
-  (get-internal-real-time))
+  (round (/ (ccl:current-time-in-nanoseconds)
+	    1000)))
