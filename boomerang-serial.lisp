@@ -1,15 +1,7 @@
 (in-package :boomerang)
 
-(defun setup-boomerang-dev (&optional (dev-file *midi-dev*))
+(defun setup-boomerang-dev (&optional (dev-file "/dev/ttyS2"))
   (external-program:run "stty" (list "-F" dev-file "115200" "sane" "-brkint" "-icrnl" "-opost" "-onlcr" "-isig" "-icanon" "-iexten" "-echo" "-echoe")))
-
-(defun midi-sniff (&optional (midi-dev *midi-dev*))
-  (setup-boomerang-dev midi-dev)
-  (with-open-file (stream midi-dev
-			  :direction :io
-			  :if-exists :overwrite
-			  :element-type '(unsigned-byte 8))
-    (loop (print (read-byte stream)))))
 
 (defun write-bytes (bytes stream)
   (dolist (byte bytes)

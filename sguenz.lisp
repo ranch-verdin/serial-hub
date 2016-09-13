@@ -475,12 +475,16 @@
 
 (defvar *sguenz-thread* nil)
 
+(eval-when (:compile-toplevel :load-toplevel)
+  (defparameter *default-midi-out-dev*
+    (get-oss-midi-dev-named "E-MU")))
+
 (defun start-sguenz-app ()
   (assert (null *sguenz-thread*))
   (setf *sguenz-thread*
 	(bt:make-thread (lambda ()
 			  (with-midi-oss-out (*default-midi-out-stream*
-					      (get-oss-midi-dev-named "E-MU"))
+					      *default-midi-out-dev*)
 			    (with-monome-output-stream ()
 			      (unwind-protect
 				   (loop (handle-event (? *reader-ochan*)))
