@@ -1,8 +1,5 @@
 (in-package :boomerang)
 
-(defun setup-boomerang-dev (&optional (dev-file "/dev/ttyS2"))
-  (external-program:run "stty" (list "-F" dev-file "115200" "sane" "-brkint" "-icrnl" "-opost" "-onlcr" "-isig" "-icanon" "-iexten" "-echo" "-echoe")))
-
 (defun write-bytes (bytes stream)
   (dolist (byte bytes)
     (write-midi-byte byte stream)))
