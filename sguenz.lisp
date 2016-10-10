@@ -171,6 +171,12 @@
   (setf (grid-position (get-active-grid))
 	chan))
 
+(defmethod echo-gesture (mess)
+  "don't blow up")
+
+(defmethod echo-gesture ((mess midi-performance-gesture))
+  (write-midi-message mess))
+
 (defmethod transmit-gesture ((mess null))
   "don't blow up")
 
@@ -487,7 +493,9 @@
 					      *default-midi-out-dev*)
 			    (with-monome-output-stream ()
 			      (unwind-protect
-				   (loop (handle-event (? *reader-ochan*)))
+				   (loop (let ((mess (? *reader-ochan*)))
+					   (handle-event mess)
+					   (echo-gesture mess)))
 				(setf *sguenz-thread* nil)))))
 			:name "sguenz-app")))
 
