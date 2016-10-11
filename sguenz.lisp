@@ -228,7 +228,7 @@
       (setf *last-grid-draw* (get-internal-utime)))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
-  (declare (ignore mess))
+  (write-midi-message mess *rang-output-stream*)
   (inc-ticker))
 
 (defparameter *ticker-strip-inputs*
@@ -492,11 +492,12 @@
 			  (with-midi-oss-out (*default-midi-out-stream*
 					      *default-midi-out-dev*)
 			    (with-monome-output-stream ()
-			      (unwind-protect
-				   (loop (let ((mess (? *reader-ochan*)))
-					   (handle-event mess)
-					   (echo-gesture mess)))
-				(setf *sguenz-thread* nil)))))
+			      (with-midi-uart-out (*rang-output-stream* "/dev/ttyS2")
+				(unwind-protect
+				     (loop (let ((mess (? *reader-ochan*)))
+					     (handle-event mess)
+					     (echo-gesture mess)))
+				  (setf *sguenz-thread* nil))))))
 			:name "sguenz-app")))
 
 (defun stop-sguenz-app ()

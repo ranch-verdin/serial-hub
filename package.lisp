@@ -11,7 +11,8 @@
 
 (defpackage #:boomerang
   (:use #:cl #:aleph-serial #:serial-hub-utils #:cl-rtmidi)
-  (:export #:start-brosync-sync #:*boomerang-taptempo-chan*))
+  (:export #:start-brosync-sync #:*boomerang-taptempo-chan*
+	   #:*rang-input-stream* #:*rang-output-stream*))
 
 (defpackage #:midi-glue
   (:use #:cl #:cffi #:cl-rtmidi #:optima #:optima.extra #:calispel
