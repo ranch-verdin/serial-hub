@@ -133,7 +133,7 @@
     (#.+brosync-toggle-message+ (setf *brosync-state* :rec-slave)
 				(setf *brosync-loop-origin*
 				      recv-time))
-    (#.+brosync-sync-message+ (start-ticker (get-internal-utime)
+    (#.+brosync-sync-message+ (start-ticker recv-time
 					    *brosync-loop-duration*)
 			      (setf *brosync-state* :play-slave))))
 
