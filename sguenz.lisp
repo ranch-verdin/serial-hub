@@ -222,10 +222,7 @@
       (seek-section-to 0 *queued-section*)
       (setf *current-section* *queued-section*)
       (setf *queued-section* nil))
-    (when (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*))
-      (calculate-display-flashes)
-      (draw-grid)
-      (setf *last-grid-draw* (get-internal-utime)))))
+    (draw-grid)))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
   (write-midi-message mess *rang-output-stream*)
@@ -347,7 +344,8 @@
 				 (get-internal-utime)))))
 	     (typecase event
 	       (monome-button-press :press)
-	       (monome-button-release :release)))))
+	       (monome-button-release :release))))
+  (draw-grid))
 
 (defun factors (n &aux (lows '()) (highs '()))
   (do ((limit (1+ (isqrt n))) (factor 1 (1+ factor)))
@@ -474,10 +472,13 @@
 (defun draw-grid ()
   ;; (monome-set-all 0)
   ;; (return-from draw-grid)
-  (draw-step-sequencer)
-  (draw-grid-seq-ticker)
-  (draw-utility-button-states)
-  (draw-section-sequence-states))
+  (when (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*))
+    (calculate-display-flashes)
+    (draw-step-sequencer)
+    (draw-grid-seq-ticker)
+    (draw-utility-button-states)
+    (draw-section-sequence-states)
+    (setf *last-grid-draw* (get-internal-utime))))
 
 (defvar *sguenz-thread* nil)
 
