@@ -30,7 +30,7 @@
                           (sleep 0.1)
                           (unwind-protect
                                (handler-case
-                                   (with-midi-oss-in (midi-stream (get-oss-midi-dev-named "E-MU"))
+                                   (with-midi-oss-in (midi-stream "/dev/snd/midiC1D0")
                                      (loop
                                         (restart-case
                                             (midi-input midi-stream

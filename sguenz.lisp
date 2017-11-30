@@ -192,10 +192,10 @@
   (setf *flash-ticker* (mod (+ *flash-ticker* 1)
 			    *flash-divisor*))
   (when (= 0 *flash-ticker*)
-    (print 'tick)
+    ;; (print 'tick)
     (setf *fast-flash* (not *fast-flash*))
     (when *fast-flash*
-      (print 'tock)
+      ;; (print 'tock)
       (setf *slow-flash* (not *slow-flash*)))))
 (defparameter *flash-divisor* 5)
 (defparameter *flash-ticker* 0)
@@ -225,7 +225,7 @@
     (draw-grid)))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
-  (write-midi-message mess *rang-output-stream*)
+  ;; (write-midi-message mess *rang-output-stream*)
   (inc-ticker))
 
 (defparameter *ticker-strip-inputs*
@@ -483,22 +483,25 @@
 (defvar *sguenz-thread* nil)
 
 (eval-when (:compile-toplevel :load-toplevel)
-  (defparameter *default-midi-out-dev*
-    (get-oss-midi-dev-named "E-MU")))
+  (defvar *default-midi-out-dev*
+    (or (get-oss-midi-dev-named "E-MU")
+	(get-virmidi 0))))
+
+(defun sguenz-main ()
+  (with-midi-oss-out (*default-midi-out-stream*
+		      *default-midi-out-dev*)
+    (with-monome-output-stream ()
+      ;; (with-midi-uart-out (*rang-output-stream* "/dev/ttyS2")
+      (unwind-protect
+	   (loop (let ((mess (? *reader-ochan*)))
+		   (handle-event mess)
+		   (echo-gesture mess)))
+	(setf *sguenz-thread* nil)))))
 
 (defun start-sguenz-app ()
   (assert (null *sguenz-thread*))
   (setf *sguenz-thread*
-	(bt:make-thread (lambda ()
-			  (with-midi-oss-out (*default-midi-out-stream*
-					      *default-midi-out-dev*)
-			    (with-monome-output-stream ()
-			      (with-midi-uart-out (*rang-output-stream* "/dev/ttyS2")
-				(unwind-protect
-				     (loop (let ((mess (? *reader-ochan*)))
-					     (handle-event mess)
-					     (echo-gesture mess)))
-				  (setf *sguenz-thread* nil))))))
+	(bt:make-thread #'sguenz-main
 			:name "sguenz-app")))
 
 (defun stop-sguenz-app ()
