@@ -23,7 +23,7 @@
 (define-condition stop-thread (error)
   ())
 
-(defun start-midi-reader (&optional (clock-ichan *clock-ctrl-chan*))
+(defun start-midi-reader (&optional (clock-ichan *reader-ochan*))
   (assert (null *reader-thread*))
   (setf *reader-thread*
         (bt:make-thread (lambda ()
