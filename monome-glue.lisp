@@ -7,7 +7,10 @@
   (assert (null *monome-reader-thread*))
   (setq *monome-reader-thread*
        	(bt:make-thread (lambda ()
-			  (with-monome-input-stream ()
+			  (setup-monome-dev)
+			  (with-monome-output ()
+			    (grab-focus))
+			  (with-monome-input ()
 			    (loop (! *reader-ochan*
 				     (monome-receive-message)))))
 			:name "monome reader thread")))

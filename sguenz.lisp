@@ -172,6 +172,7 @@
 	chan))
 
 (defmethod echo-gesture (mess)
+  (declare (ignore mess))
   "don't blow up")
 
 (defmethod echo-gesture ((mess midi-performance-gesture))
@@ -254,7 +255,7 @@
 (defun appending-copy (up-or-down)
   (format t "appending copy ~a~%" up-or-down))
 (defun layering-copy (up-or-down)
-  (format t "appending copy ~a~%" up-or-down))
+  (format t "layering copy ~a~%" up-or-down))
 (defun set-grid-length (up-or-down)
   (format t "timebase ~a~%" up-or-down)
   (if (eq :press up-or-down)
@@ -313,14 +314,7 @@
 							 15
 							 5))
 						0))))))
-    (monome-map-intensities 0 0
-			    (mapcar (lambda (row)
-				      (subseq row 0 8))
-				    whole-grid))
-    (monome-map-intensities 8 0
-			    (mapcar (lambda (row)
-				      (subseq row 8))
-				    whole-grid))))
+    (monome-map-128 whole-grid)))
 
 (defparameter *grid-section*
   (loop for y below 4
@@ -336,12 +330,14 @@
   (let ((x (slot-value event 'x))
 	(y (slot-value event 'y)))
     (funcall (or (nth x (nth y *whole-grid*))
-		 (lambda (foo)
-		   (when (eq foo :press);; xx hack - just send
-					;; boomerang taptempo on
-					;; unused buttons for now
-		     (calispel:! *boomerang-taptempo-chan*
-				 (get-internal-utime)))))
+		 (lambda (z)
+		   (format t "unused button ~a ~a ~a~%" x y z)
+		   ;; (when (eq foo :press);; xx hack - just send
+		   ;; 			;; boomerang taptempo on
+		   ;; 			;; unused buttons for now
+		   ;;   (calispel:! *boomerang-taptempo-chan*
+		   ;; 		 (get-internal-utime)))
+		   ))
 	     (typecase event
 	       (monome-button-press :press)
 	       (monome-button-release :release))))
@@ -490,7 +486,7 @@
 (defun sguenz-main ()
   (with-midi-oss-out (*default-midi-out-stream*
 		      *default-midi-out-dev*)
-    (with-monome-output-stream ()
+    (with-monome-output ()
       ;; (with-midi-uart-out (*rang-output-stream* "/dev/ttyS2")
       (unwind-protect
 	   (loop (let ((mess (? *reader-ochan*)))

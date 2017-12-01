@@ -27,7 +27,7 @@
            #:ev-tick #:ev-microtick))
 
 (defpackage #:monome-glue
-  (:use #:cl #:cl-monome #:cffi #:serial-hub-utils #:calispel)
+  (:use #:cl #:monome-serialosc #:cffi #:serial-hub-utils #:calispel)
   (:export #:start-monome-reader  #:stop-monome-reader))
 
 (defpackage #:serial-hub
@@ -55,4 +55,4 @@
 
 
 (defpackage #:sguenz
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:cl-monome #:cl-rtmidi #:sequencers #:serial-hub-utils #:boomerang))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:monome-serialosc #:cl-rtmidi #:sequencers #:serial-hub-utils #:boomerang))
