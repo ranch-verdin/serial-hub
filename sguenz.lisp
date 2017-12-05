@@ -498,14 +498,15 @@
 					  6))
        (loop for j from 1 to 3
 	  for seq in (cdr (get-sequences section))
-	  do (if (empty-p seq)
-		 (monome-set-led-intensity j i 0)
-		 (monome-set-led-intensity j i
-					   (if (play-state seq)
-					       (if (rec-state seq)
-						   (slow-flash 15)
-						   15)
-					       6))))))
+	  do (sleep 0.001) ;; FIXME uuurgh! sleep is not cool
+	    (if (empty-p seq)
+		(monome-set-led-intensity j i 0)
+		(monome-set-led-intensity j i
+					  (if (play-state seq)
+					      (if (rec-state seq)
+						  (slow-flash 15)
+						  15)
+					      6))))))
 
 (defun draw-grid ()
   ;; (monome-set-all 0)
