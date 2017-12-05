@@ -376,7 +376,7 @@
 					    collect (if (< i (grid-length (get-active-grid)))
 							4
 							0)))
-		 (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
+		 (monome-set-led-intensity (floor (* (/ (ticks-index (get-active-grid))
 							*master-beat-divisor*)
 						     (beat-divisor (get-active-grid))))
 					   3 15)
@@ -393,7 +393,7 @@
 			       (loop for i below 8
 				  collect (floor (* (/ 15 current-timebase)
 						    (mod (+ i 8) current-timebase)))))
-       (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
+       (monome-set-led-intensity (floor (* (/ (ticks-index (get-active-grid))
 					      *master-beat-divisor*)
 					   (beat-divisor (get-active-grid))))
 				 3 15))
@@ -408,7 +408,7 @@
 				  collect (if (< i (grid-length (get-active-grid)))
 					      4
 					      0)))
-       (monome-set-led-intensity (round (* (/ (ticks-index (get-active-grid))
+       (monome-set-led-intensity (floor (* (/ (ticks-index (get-active-grid))
 					      *master-beat-divisor*)
 					   (beat-divisor (get-active-grid))))
 				 3 15)))))
