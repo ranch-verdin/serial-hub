@@ -533,7 +533,8 @@
       (unwind-protect
 	   (loop (let ((mess (? *reader-ochan*)))
 		   (handle-event mess)
-		   (echo-gesture mess)))
+		   ;; (echo-gesture mess)
+		   ))
 	(setf *sguenz-thread* nil)))))
 
 (defun start-sguenz-app ()
