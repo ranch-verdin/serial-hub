@@ -55,4 +55,5 @@
 
 
 (defpackage #:sguenz
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:monome-serialosc #:cl-rtmidi #:sequencers #:serial-hub-utils #:boomerang))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:monome-serialosc #:cl-rtmidi #:sequencers #:serial-hub-utils #:boomerang)
+  (:export #:start-sguenz-app #:sguenz-grab-focus))

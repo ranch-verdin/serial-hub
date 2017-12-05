@@ -496,6 +496,12 @@
 
 (defun start-sguenz-app ()
   (assert (null *sguenz-thread*))
+
+  ;; XXX hack eeeewwww....
+  (ignore-errors (start-monome-reader))
+  (sleep 0.5)
+  (ignore-errors (start-midi-reader))
+  (sleep 0.5)
   (setf *sguenz-thread*
 	(bt:make-thread #'sguenz-main
 			:name "sguenz-app")))
@@ -503,3 +509,9 @@
 (defun stop-sguenz-app ()
   (bt:destroy-thread *sguenz-thread*)
   (setf *sguenz-thread* nil))
+
+(defun sguenz-grab-focus ()
+  (with-monome-output ()
+    (grab-focus)
+    (sleep 0.1)
+    (draw-grid)))
