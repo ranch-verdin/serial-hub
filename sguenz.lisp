@@ -314,7 +314,9 @@
 							 15
 							 5))
 						0))))))
-    (monome-map-128 whole-grid)))
+    (loop for i from 4 to 7
+       do (monome-row-intensities 0 i
+				  (nth i whole-grid)))))
 
 (defparameter *grid-section*
   (loop for y below 4
