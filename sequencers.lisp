@@ -334,7 +334,7 @@
 (defmethod empty-p ((seq free-sequence))
   (= 0 (fill-pointer (fs-memory seq))))
 
-(defgeneric copy-sequence (seq1 seq2))
+(defgeneric copy-sequence (from to))
 (defmethod copy-sequence ((seq1 free-sequence) (seq2 free-sequence))
   (erase-sequence seq2)
   (setf (fill-pointer (fs-memory seq2))
@@ -410,3 +410,30 @@
 		      (when gesture
 			(push gesture
 			      (aref (fs-memory to) to-index))))))))))
+
+(defgeneric layering-copy-sequence (from to))
+(defmethod layering-copy-sequence ((seq1 free-sequence) (seq2 free-sequence))
+  (setf (fill-pointer (fs-memory seq2))
+	(fill-pointer (fs-memory seq1)))
+  (setf (rec-state seq2) nil)
+  (setf (play-state seq2) nil)
+  (loop for i below (sequence-tick-length seq1)
+     do (setf (aref (fs-memory seq2) i)
+	      (append (aref (fs-memory seq2) i)
+		      (aref (fs-memory seq1) i)))))
+
+(defmethod layering-copy-sequence ((from grid-sequence) (to free-sequence))
+  (let ((new-length (round (sequence-tick-length from))))
+    (setf (sequence-tick-length to) new-length)
+    (loop for from-index below (grid-length from)
+       do (let* ((to-index (round (* (/ from-index (beat-divisor from))
+				     *master-beat-divisor*))))
+	    (when (and (integerp to-index)
+		       (< to-index (sequence-tick-length to)))
+	      (loop for j below 4
+		 do (let ((gesture (resolve-gesture from j
+						    (aref (grid from)
+							  from-index j))))
+		      (when gesture
+			(push gesture
+			      (aref (fs-memory to) to-index))

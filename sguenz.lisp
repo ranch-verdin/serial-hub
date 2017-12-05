@@ -76,26 +76,49 @@
 	    (record-gesture ev seq))
 	  (get-section-phrases *current-section*)))
 
+(defparameter *copy-source* nil)
+
 (defun section-a (up-or-down)
   (format t "section-0 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (case *function-button-state*
-      (:del (erase-sequence (get-active-grid)))
-      (otherwise (enqueue-section 0)))))
+    (let ((this-seq (slot-value (car *sguenz-sections*) 'grid-seq)))
+      (case *function-button-state*
+	(:del (erase-sequence this-seq))
+	(:layering-copy-source
+	 (setf *copy-source* this-seq)
+	 (setf *function-button-state* :layering-copy-dest))
+	(:layering-copy-dest
+	 (layering-copy-sequence *copy-source* this-seq)
+	 (setf *function-button-state* nil))
+	(otherwise (enqueue-section 0))))))
 
 (defun section-b (up-or-down)
   (format t "section-1 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (case *function-button-state*
-      (:del (erase-sequence (get-active-grid)))
-      (otherwise (enqueue-section 1)))))
+    (let ((this-seq (slot-value (cadr *sguenz-sections*) 'grid-seq)))
+      (case *function-button-state*
+	(:del (erase-sequence this-seq))
+	(:layering-copy-source
+	 (setf *copy-source* this-seq)
+	 (setf *function-button-state* :layering-copy-dest))
+	(:layering-copy-dest
+	 (layering-copy-sequence *copy-source* this-seq)
+	 (setf *function-button-state* nil))
+	(otherwise (enqueue-section 1))))))
 
 (defun section-c (up-or-down)
   (format t "section-2 ~a~%" up-or-down)
   (when (eq up-or-down :press)
-    (case *function-button-state*
-      (:del (erase-sequence (get-active-grid)))
-      (otherwise (enqueue-section 2)))))
+    (let ((this-seq (slot-value (caddr *sguenz-sections*) 'grid-seq)))
+      (case *function-button-state*
+	(:del (erase-sequence this-seq))
+	(:layering-copy-source
+	 (setf *copy-source* this-seq)
+	 (setf *function-button-state* :layering-copy-dest))
+	(:layering-copy-dest
+	 (layering-copy-sequence *copy-source* this-seq)
+	 (setf *function-button-state* nil))
+	(otherwise (enqueue-section 2))))))
 
 (defparameter *function-button-state* nil)
 
@@ -111,6 +134,12 @@
 	  (:stop (play-stop pushed-sequence))
 	  (:rec (rec-toggle pushed-sequence))
 	  (:del (erase-sequence pushed-sequence))
+	  (:layering-copy-source
+	   (setf *copy-source* pushed-sequence)
+	   (setf *function-button-state* :layering-copy-dest))
+	  (:layering-copy-dest
+	   (layering-copy-sequence *copy-source* pushed-sequence)
+	   (setf *function-button-state* nil))
 	  (otherwise (let ((hung-gestures (loop-cycle pushed-sequence)))
 		       (when (eq pushed-section *current-section*)
 			 (mapcar #'transmit-gesture hung-gestures)
@@ -253,9 +282,17 @@
       (setf *function-button-state* :del)
       (setf *function-button-state* nil)))
 (defun appending-copy (up-or-down)
-  (format t "appending copy ~a~%" up-or-down))
+  (format t "appending copy ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *function-button-state* :appending-copy-source)
+      (unless (eq *function-button-state* :appending-copy-dest)
+	(setf *function-button-state* nil))))
 (defun layering-copy (up-or-down)
-  (format t "layering copy ~a~%" up-or-down))
+  (format t "layering copy ~a~%" up-or-down)
+  (if (eq :press up-or-down)
+      (setf *function-button-state* :layering-copy-source)
+      (unless (eq *function-button-state* :layering-copy-dest)
+	(setf *function-button-state* nil))))
 (defun set-grid-length (up-or-down)
   (format t "timebase ~a~%" up-or-down)
   (if (eq :press up-or-down)
@@ -459,13 +496,14 @@
 					  6))
        (loop for j from 1 to 3
 	  for seq in (cdr (get-sequences section))
-	  do (unless (empty-p seq)
-	       (monome-set-led-intensity j i
-					 (if (play-state seq)
-					     (if (rec-state seq)
-						 (slow-flash 15)
-						 15)
-					     6))))))
+	  do (if (empty-p seq)
+		 (monome-set-led-intensity j i 0)
+		 (monome-set-led-intensity j i
+					   (if (play-state seq)
+					       (if (rec-state seq)
+						   (slow-flash 15)
+						   15)
+					       6))))))
 
 (defun draw-grid ()
   ;; (monome-set-all 0)
