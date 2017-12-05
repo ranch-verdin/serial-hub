@@ -8,7 +8,10 @@
 		:accessor ticks-index)
    (swing-ratio :initarg :swing-ratio
 		:initform 0
-		:accessor swing-ratio)))
+		:accessor swing-ratio)
+   (play-state :initarg :play-state
+	       :initform nil
+	       :accessor play-state)))
 
 (defun clock-divisor (seq)
   (/ *master-beat-divisor* (beat-divisor seq)))
@@ -26,7 +29,7 @@
 		:initform nil
 		:accessor gesture-map)))
 
-(defun make-grid-sequence (x y gesture-map &key (grid-length 16) (beat-divisor 4) (swing 0.0))
+(defun make-grid-sequence (x y gesture-map &key (grid-length 16) (beat-divisor 4) (swing 0.0) (play-state :repeat))
   (make-instance 'grid-sequence
 		 :grid (make-array (list (+ x 1) y)
 				   :element-type 'atom
@@ -34,7 +37,8 @@
 		 :gesture-map gesture-map
 		 :beat-divisor beat-divisor
 		 :swing-ratio swing
-		 :grid-length grid-length))
+		 :grid-length grid-length
+		 :play-state play-state))
 
 (defgeneric record-gesture (gesture sequence))
 
@@ -217,9 +221,6 @@
    (hanging-play-tones :initarg :hanging-play-tones
 		      :initform nil
 		      :accessor hanging-play-tones)
-   (play-state :initarg :play-state
-	       :initform nil
-	       :accessor play-state)
    (rec-state :initarg :rec-state
 	      :initform nil
 	      :accessor rec-state)))

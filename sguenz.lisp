@@ -23,7 +23,8 @@
   ((grid-seq :initform (make-grid-sequence 16 4
 					   (default-step-sequencer-triggers)
 					   :beat-divisor 4
-					   :swing 0))
+					   :swing 0
+					   :play-state :repeat))
    (free-seq1 :initform (make-instance 'free-sequence))
    (free-seq2 :initform (make-instance 'free-sequence))
    (free-seq3 :initform (make-instance 'free-sequence))))
@@ -239,8 +240,9 @@
 		 (do-tick (slot-value *current-section* 'free-seq2))
 		 (do-tick (slot-value *current-section* 'free-seq3)))
     (mapcar (lambda (phrase)
-	      (mapcar #'transmit-gesture
-		      (read-gestures phrase)))
+	        (when (play-state phrase)
+		  (mapcar #'transmit-gesture
+			  (read-gestures phrase))))
 	    (list (slot-value *current-section* 'grid-seq)
 		  (slot-value *current-section* 'free-seq1)
 		  (slot-value *current-section* 'free-seq2)
