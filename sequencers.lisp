@@ -436,4 +436,4 @@
 							  from-index j))))
 		      (when gesture
 			(push gesture
-			      (aref (fs-memory to) to-index))
+			      (aref (fs-memory to) to-index))))))))))
