@@ -360,6 +360,7 @@
   "returns any hanging tones we need to emit to avoid 'stuck' notes"
   (setf (play-state seq) nil)
   (rec-unarm seq)
+  (setf (ticks-index seq) 0)
   (drain-hanging-tones seq))
 
 (defmethod rec-arm ((seq free-sequence))
@@ -384,7 +385,8 @@
 		   (progn (rec-arm seq)
 			  (play-push-extend seq))
 		   (progn (setf (ticks-index seq) 0)
-			  (play-repeat seq))))))
+			  (play-repeat seq)
+			  (read-gestures seq))))))
 
 (defmethod copy-sequence ((from grid-sequence) (to grid-sequence))
   (loop for from-index below (grid-length from)
@@ -438,3 +440,13 @@
 		      (when gesture
 			(push gesture
 			      (aref (fs-memory to) to-index))))))))))
+
+(defmethod layering-copy-sequence ((from grid-sequence) (to grid-sequence))
+  (loop for from-index below (grid-length from)
+     do (let ((to-index (/ (* from-index (beat-divisor from))
+			   (beat-divisor to))))
+	  (when (and (integerp to-index)
+		     (< to-index (car (array-dimensions (grid to)))))
+	    (loop for j below 4
+	       do (setf (aref (grid to) to-index j)
+			(aref (grid from) from-index j)))))))

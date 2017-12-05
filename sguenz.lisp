@@ -90,6 +90,7 @@
 	 (setf *function-button-state* :layering-copy-dest))
 	(:layering-copy-dest
 	 (layering-copy-sequence *copy-source* this-seq)
+	 (setf *copy-source* nil)
 	 (setf *function-button-state* nil))
 	(otherwise (enqueue-section 0))))))
 
@@ -104,6 +105,7 @@
 	 (setf *function-button-state* :layering-copy-dest))
 	(:layering-copy-dest
 	 (layering-copy-sequence *copy-source* this-seq)
+	 (setf *copy-source* nil)
 	 (setf *function-button-state* nil))
 	(otherwise (enqueue-section 1))))))
 
@@ -118,6 +120,7 @@
 	 (setf *function-button-state* :layering-copy-dest))
 	(:layering-copy-dest
 	 (layering-copy-sequence *copy-source* this-seq)
+	 (setf *copy-source* nil)
 	 (setf *function-button-state* nil))
 	(otherwise (enqueue-section 2))))))
 
@@ -130,8 +133,9 @@
       (let* ((pushed-section (nth phrase-group *sguenz-sections*))
 	     (pushed-sequence (nth phrase-idx (get-sequences pushed-section)))
 	     (play-state-before (play-state pushed-sequence)))
-	(case *function-button-state*
-	  (:play (play-repeat pushed-sequence))
+ 	(case *function-button-state*
+	  (:play (play-repeat pushed-sequence)
+		 (mapcar #'transmit-gesture (read-gestures pushed-sequence)))
 	  (:stop (play-stop pushed-sequence))
 	  (:rec (rec-toggle pushed-sequence))
 	  (:del (erase-sequence pushed-sequence))
@@ -140,11 +144,11 @@
 	   (setf *function-button-state* :layering-copy-dest))
 	  (:layering-copy-dest
 	   (layering-copy-sequence *copy-source* pushed-sequence)
+	   (setf *copy-source* nil)
 	   (setf *function-button-state* nil))
 	  (otherwise (let ((hung-gestures (loop-cycle pushed-sequence)))
 		       (when (eq pushed-section *current-section*)
 			 (mapcar #'transmit-gesture hung-gestures)
-
 			 ;; XXX quick hack to quantise free-sequence
 			 ;; lengths to 1 beat
 			 (when (eq play-state-before :push-extend)
@@ -286,13 +290,15 @@
 (defun appending-copy (up-or-down)
   (format t "appending copy ~a~%" up-or-down)
   (if (eq :press up-or-down)
-      (setf *function-button-state* :appending-copy-source)
+      (progn (setf *function-button-state* :appending-copy-source)
+	     (setf *copy-source* nil))
       (unless (eq *function-button-state* :appending-copy-dest)
 	(setf *function-button-state* nil))))
 (defun layering-copy (up-or-down)
   (format t "layering copy ~a~%" up-or-down)
   (if (eq :press up-or-down)
-      (setf *function-button-state* :layering-copy-source)
+      (progn (setf *function-button-state* :layering-copy-source)
+	     (setf *copy-source* nil))
       (unless (eq *function-button-state* :layering-copy-dest)
 	(setf *function-button-state* nil))))
 (defun set-grid-length (up-or-down)
@@ -494,7 +500,10 @@
      for i below (length *sguenz-sections*)
      do (monome-set-led-intensity 0 i (if (eq *current-section*
 					      section)
-					  15
+					  (if (eq *copy-source*
+						  (car (get-sequences *current-section*)))
+						      (fast-flash 15)
+						      15)
 					  6))
        (loop for j from 1 to 3
 	  for seq in (cdr (get-sequences section))
@@ -505,7 +514,10 @@
 					  (if (play-state seq)
 					      (if (rec-state seq)
 						  (slow-flash 15)
-						  15)
+						  (if (eq *copy-source*
+							  seq)
+						      (fast-flash 15)
+						      15))
 					      6))))))
 
 (defun draw-grid ()
