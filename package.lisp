@@ -44,11 +44,12 @@
 	   #:grid-crossing-point
 	   #:sequence-tick-length #:read-gestures
 	   #:record-gesture #:do-tick
-	   #:grid-set-element #:grid-set-column
+	   #:grid-set-element #:grid-set-lumn
 	   
 	   #:free-sequence #:note-on #:note-off
 	   #:do-tick #:erase-sequence #:copy-sequence
 	   #:layering-copy-sequence
+	   #:appending-copy-sequence
 	   #:play-push-extend #:play-repeat #:play-stop
 	   #:play-state #:rec-state #:empty-p
 	   #:rec-arm #:rec-unarm #:rec-toggle

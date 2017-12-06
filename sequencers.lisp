@@ -450,3 +450,30 @@
 	    (loop for j below 4
 	       do (setf (aref (grid to) to-index j)
 			(aref (grid from) from-index j)))))))
+
+
+(defgeneric appending-copy-sequence (from to))
+(defmethod appending-copy-sequence ((seq1 free-sequence) (seq2 free-sequence))
+  (let ((insertion-offset (fill-pointer (fs-memory seq2))))
+    (setf (fill-pointer (fs-memory seq2))
+	  (+ (fill-pointer (fs-memory seq1))
+	     insertion-offset))
+    (setf (rec-state seq2) nil)
+    (setf (play-state seq2) nil)
+    (loop for i below (sequence-tick-length seq1)
+       do (setf (aref (fs-memory seq2)
+		      (+ insertion-offset i))
+		(aref (fs-memory seq1) i)))))
+
+(defmethod appending-copy-sequence ((from grid-sequence) (to free-sequence))
+  (print 'not-implemented))
+
+(defmethod appending-copy-sequence ((from grid-sequence) (to grid-sequence))
+  (loop for from-index below (grid-length from)
+     do (let ((to-index (/ (* from-index (beat-divisor from))
+			   (beat-divisor to))))
+	  (when (and (integerp to-index)
+		     (< to-index (car (array-dimensions (grid to)))))
+	    (loop for j below 4
+	       do (setf (aref (grid to) to-index j)
+			(aref (grid from) from-index j)))))))
