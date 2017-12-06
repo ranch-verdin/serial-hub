@@ -290,15 +290,17 @@
   (if (eq :press up-or-down)
       (progn (setf *function-button-state* :appending-copy-source)
 	     (setf *copy-sources* nil))
-      (when *copy-sources*
-	(setf *function-button-state* :appending-copy-dest))))
+      (if *copy-sources*
+	  (setf *function-button-state* :appending-copy-dest)
+	  (setf *function-button-state* nil))))
 (defun layering-copy (up-or-down)
   (format t "layering copy ~a~%" up-or-down)
   (if (eq :press up-or-down)
       (progn (setf *function-button-state* :layering-copy-source)
 	     (setf *copy-sources* nil))
-      (when *copy-sources*
-	(setf *function-button-state* :layering-copy-dest))))
+      (if *copy-sources*
+	  (setf *function-button-state* :layering-copy-dest)
+	  (setf *function-button-state* nil))))
 (defun set-grid-length (up-or-down)
   (format t "timebase ~a~%" up-or-down)
   (if (eq :press up-or-down)
