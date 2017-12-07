@@ -95,7 +95,7 @@
       ((list :press :del)
        (erase-sequence this-seq))
       ((list :press :appending-copy-source)
-       (pushnew this-seq *copy-sources*))
+       (push this-seq *copy-sources*))
       ((list :press :appending-copy-dest)
        (dolist (seq (reverse *copy-sources*))
 	   (appending-copy-sequence seq this-seq))
@@ -129,7 +129,7 @@
 	 (erase-sequence pushed-sequence))
 	((list :press :appending-copy-source)
 	 (unless (empty-p pushed-sequence)
-	   (pushnew pushed-sequence *copy-sources*)))
+	   (push pushed-sequence *copy-sources*)))
 	((list :press :appending-copy-dest)
 	 (dolist (seq (reverse *copy-sources*))
 	   (appending-copy-sequence seq pushed-sequence))
@@ -428,7 +428,8 @@
 		 (monome-set-led-intensity (- current-timebase 1)
 					   3 15)
 		 (loop for i in (factors current-pattern-length)
-		    do (monome-set-led-intensity (- i 1)  3 8)))
+		    do (sleep 0.001) ;; FIXME uuurgh! sleep is not cool
+		      (monome-set-led-intensity (- i 1)  3 8)))
       (:grid-length
        (monome-row-intensities 0 3
 			       (loop for i below 8
