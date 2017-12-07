@@ -236,17 +236,13 @@
   (fill-pointer (fs-memory seq)))
 
 (defmethod armed-and-ready ((seq free-sequence))
-  (and (eq (rec-state seq)
-	   :overdub)
-       (> (ticks-index seq) 0)
-       (<= (ticks-index seq)
-	   (fill-pointer (fs-memory seq)))))
+  (eq (rec-state seq)
+      :overdub))
 
 (defmethod record-gesture (gesture (seq free-sequence))
   (when (armed-and-ready seq)
     (push gesture (aref (fs-memory seq)
-			(- (ticks-index seq)
-			   1)))))
+			(ticks-index seq)))))
 
 (defmethod record-gesture :after ((gesture note-on-midi-message) (seq free-sequence))
   (when (armed-and-ready seq)
@@ -386,11 +382,15 @@
 		   (progn
 		     (setf (fill-pointer (fs-memory seq))
 			   1)
+		     (setf (ticks-index seq) 0)
+		     (drain-hanging-tones seq)
 		     (rec-arm seq)
 		     (play-push-extend seq)
 		     (mapcar (lambda (g)
 			       (record-gesture g seq))
-			     (print downbeat-gestures)))
+			     (print downbeat-gestures))
+		     nil);; FIXME the fact that sguenz is transmitting return
+		   ;; value of this function is garbage
 		   (progn (setf (ticks-index seq) 0)
 			  (play-repeat seq)
 			  (read-gestures seq))))))

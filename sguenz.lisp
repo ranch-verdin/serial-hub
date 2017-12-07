@@ -41,7 +41,8 @@
   (setf *queued-section* (nth idx *sguenz-sections*)))
 
 (defun drain-section (section)
-  (mapcar #'drain-hanging-tones
+  (mapcar (lambda (seq)
+	    (mapcar #'transmit-gesture (drain-hanging-tones seq)))
 	  (get-sequences section)))
 
 (defun seek-section-to (pos section)
@@ -147,14 +148,13 @@
 	 (play-repeat pushed-sequence)
 	 (mapcar #'transmit-gesture (read-gestures pushed-sequence)))
 	((list :press :stop)
-	 (drain-hanging-tones pushed-sequence)
+	 (mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence))
 	 (play-stop pushed-sequence))
 	((list :press :rec)
-	 ;; FIXME sync record-start point to nearest beat,
-	 ;; grab very close record note-on messages & place on downbeat
+	 ;; FIXME sync record-start point to nearest beat?
 	 (rec-toggle pushed-sequence))
 	((list :press :del)
-	 (drain-hanging-tones pushed-sequence)
+	 (mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence))
 	 (erase-sequence pushed-sequence))
 	((list :press :appending-copy-source)
 	 (unless (empty-p pushed-sequence)
