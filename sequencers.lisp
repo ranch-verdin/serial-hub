@@ -243,18 +243,16 @@
 	   (fill-pointer (fs-memory seq)))))
 
 (defmethod record-gesture (gesture (seq free-sequence))
-  (warn "record-gesture quantisation not implemented yet...")
   (when (armed-and-ready seq)
     (push gesture (aref (fs-memory seq)
 			(- (ticks-index seq)
 			   1)))))
 
-;; These are empty classes to denote a generalised type of 'note' that
-;; can be either noteon or noteoff, e.g midi however this allows the
 (defmethod record-gesture :after ((gesture note-on-midi-message) (seq free-sequence))
   (when (armed-and-ready seq)
-    (push (note-off gesture)
-	  (hanging-rec-tones seq))))
+    (pushnew (note-off gesture)
+	     (hanging-rec-tones seq)
+	     :test #'midi-note=)))
 
 (defmethod record-gesture :after ((gesture note-off-midi-message) (seq free-sequence))
   (when (armed-and-ready seq)
@@ -300,6 +298,9 @@
 (defmethod drain-hanging-tones ((seq free-sequence))
   (drain-hanging-rec-tones seq)
   (drain-hanging-play-tones seq))
+
+(defmethod drain-hanging-tones ((seq grid-sequence))
+  )
 
 (defmethod do-tick ((seq free-sequence))
   (when (play-state seq)
@@ -375,15 +376,21 @@
       (rec-unarm seq)
       (rec-arm seq)))
 
-
-(defmethod loop-cycle ((seq free-sequence))
+(defgeneric loop-cycle (seq &optional downbeat-gestures))
+(defmethod loop-cycle ((seq free-sequence) &optional downbeat-gestures)
   (case (play-state seq)
     (:repeat (play-stop seq))
     (:push-extend (play-repeat seq)
 		  (rec-unarm seq))
     (otherwise (if (= 0 (fill-pointer (fs-memory seq)))
-		   (progn (rec-arm seq)
-			  (play-push-extend seq))
+		   (progn
+		     (setf (fill-pointer (fs-memory seq))
+			   1)
+		     (rec-arm seq)
+		     (play-push-extend seq)
+		     (mapcar (lambda (g)
+			       (record-gesture g seq))
+			     (print downbeat-gestures)))
 		   (progn (setf (ticks-index seq) 0)
 			  (play-repeat seq)
 			  (read-gestures seq))))))

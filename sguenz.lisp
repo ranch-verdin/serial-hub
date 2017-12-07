@@ -40,7 +40,12 @@
 (defun enqueue-section (idx)
   (setf *queued-section* (nth idx *sguenz-sections*)))
 
+(defun drain-section (section)
+  (mapcar #'drain-hanging-tones
+	  (get-sequences section)))
+
 (defun seek-section-to (pos section)
+  (drain-section section)
   (mapcar (lambda (seq)
 	    (if (> (sequence-tick-length seq)
 		   0)
@@ -72,7 +77,27 @@
 	(slot-value sec 'free-seq2)
 	(slot-value sec 'free-seq3)))
 
+(defparameter *lookahead-list*
+  (loop for i below (round (/ *master-beat-divisor* 2))
+     collect nil))
+
+(defun lookahead-store (ev)
+  (push ev (car *lookahead-list*)))
+
+(defun lookahead-tick ()
+  (push nil *lookahead-list*)
+  (setf *lookahead-list*
+	(subseq *lookahead-list*
+		0 (round (/ *master-beat-divisor* 2)))))
+
+(defun lookahead-dump ()
+  (loop for i in *lookahead-list*
+	   append (loop for j in i
+		     when j
+		     collect j)))
+
 (defmethod handle-event ((ev midi-performance-gesture))
+  (lookahead-store ev)
   (mapcar (lambda (seq)
 	    (record-gesture ev seq))
 	  (get-section-phrases *current-section*)))
@@ -122,10 +147,14 @@
 	 (play-repeat pushed-sequence)
 	 (mapcar #'transmit-gesture (read-gestures pushed-sequence)))
 	((list :press :stop)
+	 (drain-hanging-tones pushed-sequence)
 	 (play-stop pushed-sequence))
 	((list :press :rec)
+	 ;; FIXME sync record-start point to nearest beat,
+	 ;; grab very close record note-on messages & place on downbeat
 	 (rec-toggle pushed-sequence))
 	((list :press :del)
+	 (drain-hanging-tones pushed-sequence)
 	 (erase-sequence pushed-sequence))
 	((list :press :appending-copy-source)
 	 (unless (empty-p pushed-sequence)
@@ -144,7 +173,8 @@
 	 (setf *copy-sources* nil)
 	 (setf *function-button-state* nil))
 	((list :press _)
-	 (let ((hung-gestures (loop-cycle pushed-sequence)))
+	 (let ((hung-gestures (loop-cycle pushed-sequence
+				   (lookahead-dump))))
 	   (when (eq pushed-section *current-section*)
 	     (mapcar #'transmit-gesture hung-gestures)
 	     ;; XXX quick hack to quantise free-sequence
@@ -171,7 +201,7 @@
 			(phrase-selector 2 x))
 		      '(1 2 3)))))
 
-(defun get-active-phrase ()
+(defun get-active-phrases ()
   (cond ((= *active-phrase* 0)
 	 (slot-value *current-section* 'grid-seq))
 	((= *active-phrase* 1)
@@ -236,6 +266,8 @@
 (defparameter *fast-flash* nil)
 (defparameter *slow-flash* nil)
 
+(defvar *ticks-this-beat* 0)
+
 (defun inc-ticker ()
   (prog1 (values (do-tick (slot-value *current-section* 'grid-seq))
 		 (do-tick (slot-value *current-section* 'free-seq1))
@@ -253,14 +285,29 @@
 		  (round (- (sequence-tick-length (get-active-grid))
 			    1)))
 	       *queued-section*)
-      (seek-section-to 0 *queued-section*)
+      ;; (seek-section-to 0 *queued-section*)
+      (drain-section *current-section*)
       (setf *current-section* *queued-section*)
       (setf *queued-section* nil))
-    (draw-grid)))
+    (lookahead-tick)
+    ;; (print *ticks-this-beat*)
+    (incf *ticks-this-beat*)
+    (when (>= *ticks-this-beat* *master-beat-divisor*)
+      (decf *ticks-this-beat* *master-beat-divisor*))))
 
 (defmethod handle-event ((mess clock-tick-midi-message))
-  ;; (write-midi-message mess *rang-output-stream*)
-  (inc-ticker))
+  (inc-ticker)
+  (draw-grid))
+
+(defmethod handle-event ((mess stop-midi-message))
+  (drain-section *current-section*))
+
+(defmethod handle-event ((mess start-midi-message))
+  (setf *ticks-this-beat* 0)
+  (seek-section-to 0 *current-section*))
+
+(defmethod handle-event ((mess continue-midi-message))
+  (print 'continue-midi))
 
 (defparameter *ticker-strip-inputs*
   (loop for x below 16 collect (ticker-strip x)))
@@ -318,8 +365,11 @@
       (setf *ticker-strip-modifier-state* nil)))
 (defun mute (up-or-down)
   (format t "mute ~a~%" up-or-down))
-(defun stop-all (up-or-down)
-  (format t "stop-all ~a~%" up-or-down))
+(defun sync (up-or-down)
+  (format t "sync ~a~%" up-or-down)
+  ;; FIXME maybe make this a modifier, to sync particular sequences in
+  ;; current section?
+  (seek-section-to *ticks-this-beat* *current-section*))
 (defun emph (up-or-down)
   (when (eq up-or-down :press)
     (setf *emph-state*
@@ -332,7 +382,7 @@
 (defparameter *function-buttons*
   (list (list #'play #'stop #'rec #'del)
 	(list #'set-grid-length #'timebase #'swing #'emph)
-	(list #'mute #'stop-all #'layering-copy #'appending-copy)))
+	(list #'mute #'sync #'layering-copy #'appending-copy)))
 
 (defparameter *emph-state* :emph)
 
