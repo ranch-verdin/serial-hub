@@ -612,9 +612,9 @@
 
   ;; XXX hack eeeewwww....
   (ignore-errors (start-monome-reader))
-  (sleep 0.5)
+  (sleep 0.1)
   (ignore-errors (start-midi-reader))
-  (sleep 0.5)
+  (sleep 0.1)
   (setf *sguenz-thread*
 	(bt:make-thread #'sguenz-main
 			:name "sguenz-app")))
