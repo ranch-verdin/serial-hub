@@ -412,9 +412,7 @@
 			)))))))
 
 (defun draw-step-sequencer ()
-  (let ((whole-grid (append (loop repeat 4 collect
-				 (loop repeat 16 collect 0))
-			    (loop for y below 4
+  (let ((whole-grid (append (loop for y below 4
 			       collect
 				 (loop for x below 16
 				    as cell = (aref (grid (get-active-grid)) x y)
@@ -423,8 +421,8 @@
 							 15
 							 5))
 						0))))))
-    (loop for i from 4 to 7
-       do (monome-row-intensities 0 i
+    (loop for i below 8
+       do (monome-row-intensities 0 (+ i 4)
 				  (nth i whole-grid)))))
 
 (defparameter *grid-section*
@@ -469,59 +467,37 @@
   (let ((current-timebase (beat-divisor (get-active-grid)))
 	(current-pattern-length (grid-length (get-active-grid))))
     (case *ticker-strip-modifier-state*
-      (:swing (monome-row-intensities 0 3
-				      (loop for i below 8
-					 collect i))
-	      (monome-row-intensities 8 3
-				      (loop for i below 8
-					 collect (+ i 8))))
-      (:timebase (monome-row-intensities 0 3
-					 (loop for i below 8
-					    collect (if (< i (grid-length (get-active-grid)))
-							4
-							0)))
-		 (monome-row-intensities 8 3
-					 (loop for i from 8 below 16
-					    collect (if (< i (grid-length (get-active-grid)))
-							4
-							0)))
-		 (monome-set-led-intensity (floor (* (/ (ticks-index (get-active-grid))
-							*master-beat-divisor*)
-						     (beat-divisor (get-active-grid))))
-					   3 15)
-		 (monome-set-led-intensity (- current-timebase 1)
-					   3 15)
-		 (loop for i in (factors current-pattern-length)
-		    do (sleep 0.001) ;; FIXME uuurgh! sleep is not cool
-		      (monome-set-led-intensity (- i 1)  3 8)))
+      (:swing (loop for i below 16
+		 collect i))
+      (:timebase (loop for i below 16
+		    collect (cond ((= i (- current-timebase 1))
+				   15)
+				  ((= i (floor (* (/ (ticks-index (get-active-grid))
+						     *master-beat-divisor*)
+						  (beat-divisor (get-active-grid)))))
+				   12)
+				  ((find (+ i 1) (factors current-pattern-length))
+				   8)
+				  ((< i current-pattern-length)
+				   2)
+				  (t 0))))
       (:grid-length
-       (monome-row-intensities 0 3
-			       (loop for i below 8
-				  collect (floor (* (/ 15 current-timebase)
-						    (mod i current-timebase)))))
-       (monome-row-intensities 8 3
-			       (loop for i below 8
-				  collect (floor (* (/ 15 current-timebase)
-						    (mod (+ i 8) current-timebase)))))
-       (monome-set-led-intensity (floor (* (/ (ticks-index (get-active-grid))
-					      *master-beat-divisor*)
-					   (beat-divisor (get-active-grid))))
-				 3 15))
+       (loop for i below 16
+	  collect (cond ((= i (floor (* (/ (ticks-index (get-active-grid))
+					   *master-beat-divisor*)
+					(beat-divisor (get-active-grid)))))
+			 15)
+			(t (floor (* (/ 12 current-timebase)
+				     (mod i current-timebase)))))))
       (otherwise
-       (monome-row-intensities 0 3
-			       (loop for i below 8
-				  collect (if (< i (grid-length (get-active-grid)))
-					      4
-					      0)))
-       (monome-row-intensities 8 3
-			       (loop for i from 8 below 16
-				  collect (if (< i (grid-length (get-active-grid)))
-					      4
-					      0)))
-       (monome-set-led-intensity (floor (* (/ (ticks-index (get-active-grid))
-					      *master-beat-divisor*)
-					   (beat-divisor (get-active-grid))))
-				 3 15)))))
+       (loop for i below 16
+	  collect (cond ((= i (floor (* (/ (ticks-index (get-active-grid))
+					  *master-beat-divisor*)
+				       (beat-divisor (get-active-grid)))))
+			 15)
+			((< i (grid-length (get-active-grid)))
+			 4)
+			(t 0)))))))
 
 (defun draw-utility-button-states ()
   (monome-set-led-intensity 4 0 (if (eq *function-button-state* :play)
@@ -611,7 +587,9 @@
 	     (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*)))
     (calculate-display-flashes)
     (draw-step-sequencer)
-    (draw-grid-seq-ticker)
+    (let ((row (draw-grid-seq-ticker)))
+      (monome-row-intensities 0 3 (subseq row 0 8))
+      (monome-row-intensities 8 3 (subseq row 8 16)))
     (draw-utility-button-states)
     (draw-section-sequence-states)
     (setf *last-grid-draw* (get-internal-utime))))
