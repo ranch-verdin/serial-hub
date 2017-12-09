@@ -383,8 +383,8 @@
 
 (defparameter *function-buttons*
   (list (list #'play #'stop #'rec #'del)
-	(list #'set-grid-length #'timebase #'swing #'emph)
-	(list #'mute #'sync #'layering-copy #'appending-copy)))
+	(list #'emph #'sync #'layering-copy #'appending-copy)
+	(list #'set-grid-length #'timebase #'swing #'mute)))
 
 (defparameter *emph-state* t)
 
@@ -535,22 +535,22 @@
   (monome-set-led-intensity 7 0 (if (eq *function-button-state* :del)
 				    15
 				    10))
-  (monome-set-led-intensity 4 1 (if (eq *ticker-strip-modifier-state* :grid-length)
-				    15
-				    10))
-  (monome-set-led-intensity 5 1 (if (eq *ticker-strip-modifier-state* :timebase)
-				    15
-				    8))
-  (monome-set-led-intensity 6 1 (if (eq *ticker-strip-modifier-state* :swing)
-				    15
-				    6))
-  (monome-set-led-intensity 7 1 (if (eq *emph-state* :emph)
+  (monome-set-led-intensity 4 1 (if (eq *emph-state* :emph)
 				    15
 				    4)) ;; emph button
-  (monome-set-led-intensity 4 2 0)
-  (monome-set-led-intensity 5 2 6)
-  (monome-set-led-intensity 6 2 8)
-  (monome-set-led-intensity 7 2 10)
+  (monome-set-led-intensity 5 1 6) ;; sync button
+  (monome-set-led-intensity 6 1 8) ;; layering copy button
+  (monome-set-led-intensity 7 1 10) ;; appending copy button
+  (monome-set-led-intensity 4 2 (if (eq *ticker-strip-modifier-state* :grid-length)
+				    15
+				    10))
+  (monome-set-led-intensity 5 2 (if (eq *ticker-strip-modifier-state* :timebase)
+				    15
+				    8))
+  (monome-set-led-intensity 6 2 (if (eq *ticker-strip-modifier-state* :swing)
+				    15
+				    6))
+  (monome-set-led-intensity 7 2 0)
   )
 
 (defun fast-flash (on-intensity &optional (off-intensity 0))
