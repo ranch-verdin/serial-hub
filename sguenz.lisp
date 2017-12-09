@@ -177,8 +177,9 @@
 				   (lookahead-dump))))
 	   (when (eq pushed-section *current-section*)
 	     (mapcar #'transmit-gesture hung-gestures)
-	     ;; XXX quick hack to quantise free-sequence
-	     ;; lengths to 1 beat
+	     ;; XXX quick hack to quantise free-sequence lengths to 1
+	     ;; beat FIXME - the hack leads to downbeat tones not
+	     ;; sounding on first loop
 	     (when (eq play-state-before :push-extend)
 	       (setf (sequence-tick-length pushed-sequence)
 		     (* *master-beat-divisor*
