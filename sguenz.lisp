@@ -577,10 +577,19 @@
 						      (fast-flash 6)
 						      6)))))))
 
+(defvar *sguenz-has-focus* nil)
+
+;; FIXME this should be handled in monome/OSC backend.  draw-grid
+;; should be a callback, circumventing the need for app to know about
+;; focus
+(defmethod handle-event ((event monome-focus-event))
+  (setf *sguenz-has-focus* (focus event)))
+
 (defun draw-grid ()
   ;; (monome-set-all 0)
   ;; (return-from draw-grid)
-  (when (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*))
+  (when (and *sguenz-has-focus*
+	     (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*)))
     (calculate-display-flashes)
     (draw-step-sequencer)
     (draw-grid-seq-ticker)
