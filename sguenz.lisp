@@ -517,13 +517,13 @@
 	      10)    ;; appending copy button
 	(list (if (eq *ticker-strip-modifier-state* :grid-length)
 		  15
-		  10)
+		  4)
 	      (if (eq *ticker-strip-modifier-state* :timebase)
 		  15
-		  8)
+		  6)
 	      (if (eq *ticker-strip-modifier-state* :swing)
 		  15
-		  6)
+		  8)
 	      0))) ;; unused (currently calls #'mute)
 
 (defun fast-flash (on-intensity &optional (off-intensity 0))
