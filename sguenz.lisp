@@ -583,7 +583,8 @@
 ;; should be a callback, circumventing the need for app to know about
 ;; focus
 (defmethod handle-event ((event monome-focus-event))
-  (setf *sguenz-has-focus* (focus event)))
+  (setf *sguenz-has-focus* (focus event))
+  (draw-grid))
 
 (defun draw-grid ()
   ;; (monome-set-all 0)
