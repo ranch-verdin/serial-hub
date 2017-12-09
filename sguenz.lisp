@@ -364,13 +364,15 @@
       (setf *ticker-strip-modifier-state* :swing)
       (setf *ticker-strip-modifier-state* nil)))
 (defun mute (up-or-down)
-  (format t "mute ~a~%" up-or-down))
+  ;; lying useless/idle for now
+  (declare (ignore up-or-down)))
 (defun sync (up-or-down)
   (format t "sync ~a~%" up-or-down)
   ;; FIXME maybe make this a modifier, to sync particular sequences in
   ;; current section?
   (seek-section-to *ticks-this-beat* *current-section*))
 (defun emph (up-or-down)
+  (format t "emph ~a~%" up-or-down)
   (if (eq up-or-down :press)
     (setf *emph-state*
 	  :emph)
@@ -384,7 +386,7 @@
 	(list #'set-grid-length #'timebase #'swing #'emph)
 	(list #'mute #'sync #'layering-copy #'appending-copy)))
 
-(defparameter *emph-state* :emph)
+(defparameter *emph-state* t)
 
 (defun step-sequencer-button (x y)
   (declare (optimize (debug 3)))
@@ -523,28 +525,32 @@
 (defun draw-utility-button-states ()
   (monome-set-led-intensity 4 0 (if (eq *function-button-state* :play)
 				    15
-				    6))
+				    4))
   (monome-set-led-intensity 5 0 (if (eq *function-button-state* :stop)
 				    15
-				    8))
+				    6))
   (monome-set-led-intensity 6 0 (if (eq *function-button-state* :rec)
 				    15
-				    10))
+				    8))
   (monome-set-led-intensity 7 0 (if (eq *function-button-state* :del)
 				    15
-				    12))
+				    10))
   (monome-set-led-intensity 4 1 (if (eq *ticker-strip-modifier-state* :grid-length)
 				    15
-				    12))
+				    10))
   (monome-set-led-intensity 5 1 (if (eq *ticker-strip-modifier-state* :timebase)
 				    15
-				    10))
+				    8))
   (monome-set-led-intensity 6 1 (if (eq *ticker-strip-modifier-state* :swing)
 				    15
-				    8))
+				    6))
   (monome-set-led-intensity 7 1 (if (eq *emph-state* :emph)
 				    15
-				    6)) ;; emph button
+				    4)) ;; emph button
+  (monome-set-led-intensity 4 2 0)
+  (monome-set-led-intensity 5 2 6)
+  (monome-set-led-intensity 6 2 8)
+  (monome-set-led-intensity 7 2 10)
   )
 
 (defun fast-flash (on-intensity &optional (off-intensity 0))
