@@ -599,6 +599,7 @@
   (with-midi-oss-out (*default-midi-out-stream*
 		      *default-midi-out-dev*)
     (with-monome-output ()
+      (grab-focus)
       ;; (with-midi-uart-out (*rang-output-stream* "/dev/ttyS2")
       (unwind-protect
 	   (loop (let ((mess (? *reader-ochan*)))
