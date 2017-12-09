@@ -144,12 +144,6 @@
 	   (pushed-sequence (nth phrase-idx (get-sequences pushed-section)))
 	   (play-state-before (play-state pushed-sequence)))
       (match (list up-or-down *function-button-state*)
-	((list :press :play)
-	 (play-repeat pushed-sequence)
-	 (mapcar #'transmit-gesture (read-gestures pushed-sequence)))
-	((list :press :stop)
-	 (mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence))
-	 (play-stop pushed-sequence))
 	((list :press :rec)
 	 ;; FIXME sync record-start point to nearest beat?
 	 (rec-toggle pushed-sequence))
@@ -313,16 +307,6 @@
 (defparameter *ticker-strip-inputs*
   (loop for x below 16 collect (ticker-strip x)))
 
-(defun play (up-or-down)
-  (format t "play ~a~%" up-or-down)
-  (if (eq :press up-or-down)
-      (setf *function-button-state* :play)
-      (setf *function-button-state* nil)))
-(defun stop (up-or-down)
-  (format t "stop ~a~%" up-or-down)
-  (if (eq :press up-or-down)
-      (setf *function-button-state* :stop)
-      (setf *function-button-state* nil)))
 (defun rec (up-or-down)
   (format t "overdub ~a~%" up-or-down)
   (if (eq :press up-or-down)
@@ -350,7 +334,7 @@
 	  (setf *function-button-state* :layering-copy-dest)
 	  (setf *function-button-state* nil))))
 (defun set-grid-length (up-or-down)
-  (format t "timebase ~a~%" up-or-down)
+  (format t "grid-length ~a~%" up-or-down)
   (if (eq :press up-or-down)
       (setf *ticker-strip-modifier-state* :grid-length)
       (setf *ticker-strip-modifier-state* nil)))
@@ -364,9 +348,7 @@
   (if (eq :press up-or-down)
       (setf *ticker-strip-modifier-state* :swing)
       (setf *ticker-strip-modifier-state* nil)))
-(defun mute (up-or-down)
-  ;; lying useless/idle for now
-  (declare (ignore up-or-down)))
+
 (defun sync (up-or-down)
   (format t "sync ~a~%" up-or-down)
   ;; FIXME maybe make this a modifier, to sync particular sequences in
@@ -383,9 +365,9 @@
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
 (defparameter *function-buttons*
-  (list (list #'play #'stop #'rec #'del)
+  (list (list nil nil #'rec #'del)
 	(list #'emph #'sync #'layering-copy #'appending-copy)
-	(list #'set-grid-length #'timebase #'swing #'mute)))
+	(list #'set-grid-length #'timebase #'swing nil)))
 
 (defparameter *emph-state* t)
 
@@ -497,12 +479,8 @@
 			(t 0)))))))
 
 (defun draw-utility-button-states ()
-  (list (list (if (eq *function-button-state* :play)
-		  15
-		  4)
-	      (if (eq *function-button-state* :stop)
-		  15
-		  6)
+  (list (list 0
+	      0
 	      (if (eq *function-button-state* :rec)
 		  15
 		  8)
@@ -524,7 +502,7 @@
 	      (if (eq *ticker-strip-modifier-state* :swing)
 		  15
 		  8)
-	      0))) ;; unused (currently calls #'mute)
+	      0)))
 
 (defun fast-flash (on-intensity &optional (off-intensity 0))
   (if *fast-flash*
