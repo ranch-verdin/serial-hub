@@ -371,11 +371,11 @@
   ;; current section?
   (seek-section-to *ticks-this-beat* *current-section*))
 (defun emph (up-or-down)
-  (when (eq up-or-down :press)
+  (if (eq up-or-down :press)
     (setf *emph-state*
-	  (case *emph-state*
-	    (:emph t)
-	    (t :emph)))))
+	  :emph)
+    (setf *emph-state*
+	  t)))
 (defun toggle-arrange-or-rec-mode (up-or-down)
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
@@ -393,10 +393,21 @@
     (symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
       (case up-or-down
 	(:press (setf button-emph
-		      (or (and (not button-emph)
-			       *emph-state*)
-			  (and (not (eq button-emph *emph-state*))
-			       *emph-state*))))))))
+		      (match (print (list *emph-state* button-emph))
+			((list :emph nil)
+			 (setf button-emph :emph))
+			((list :emph t)
+			 (setf button-emph :emph))
+			((list :emph :emph)
+			 (setf button-emph t))
+			((list t nil)
+			 (setf button-emph t))
+			((list t t)
+			 (setf button-emph nil))
+			((list t :emph)
+			 (setf button-emph nil))
+			)))))))
+
 (defun draw-step-sequencer ()
   (let ((whole-grid (append (loop repeat 4 collect
 				 (loop repeat 16 collect 0))
