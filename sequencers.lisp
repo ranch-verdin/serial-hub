@@ -345,20 +345,16 @@
 
 (defmethod play-push-extend ((seq free-sequence))
   (setf (play-state seq)
-	:push-extend)
-  nil)
+	:push-extend))
 
 (defmethod play-repeat ((seq free-sequence))
   (setf (play-state seq)
-	:repeat)
-  nil)
+	:repeat))
 
 (defmethod play-stop ((seq free-sequence))
-  "returns any hanging tones we need to emit to avoid 'stuck' notes"
   (setf (play-state seq) nil)
   (rec-unarm seq)
-  (setf (ticks-index seq) 0)
-  (drain-hanging-tones seq))
+  (setf (ticks-index seq) 0))
 
 (defmethod rec-arm ((seq free-sequence))
   (setf (rec-state seq) :overdub))
@@ -388,12 +384,9 @@
 		     (play-push-extend seq)
 		     (mapcar (lambda (g)
 			       (record-gesture g seq))
-			     (print downbeat-gestures))
-		     nil);; FIXME the fact that sguenz is transmitting return
-		   ;; value of this function is garbage
+			     downbeat-gestures))
 		   (progn (setf (ticks-index seq) 0)
-			  (play-repeat seq)
-			  (read-gestures seq))))))
+			  (play-repeat seq))))))
 
 ;; old version attempts to compensate time betweeen grid-seqs (seems pretty useless)
 ;; (defmethod copy-sequence ((from grid-sequence) (to grid-sequence))
