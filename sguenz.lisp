@@ -500,35 +500,34 @@
 			(t 0)))))))
 
 (defun draw-utility-button-states ()
-  (monome-set-led-intensity 4 0 (if (eq *function-button-state* :play)
-				    15
-				    4))
-  (monome-set-led-intensity 5 0 (if (eq *function-button-state* :stop)
-				    15
-				    6))
-  (monome-set-led-intensity 6 0 (if (eq *function-button-state* :rec)
-				    15
-				    8))
-  (monome-set-led-intensity 7 0 (if (eq *function-button-state* :del)
-				    15
-				    10))
-  (monome-set-led-intensity 4 1 (if (eq *emph-state* :emph)
-				    15
-				    4)) ;; emph button
-  (monome-set-led-intensity 5 1 6) ;; sync button
-  (monome-set-led-intensity 6 1 8) ;; layering copy button
-  (monome-set-led-intensity 7 1 10) ;; appending copy button
-  (monome-set-led-intensity 4 2 (if (eq *ticker-strip-modifier-state* :grid-length)
-				    15
-				    10))
-  (monome-set-led-intensity 5 2 (if (eq *ticker-strip-modifier-state* :timebase)
-				    15
-				    8))
-  (monome-set-led-intensity 6 2 (if (eq *ticker-strip-modifier-state* :swing)
-				    15
-				    6))
-  (monome-set-led-intensity 7 2 0)
-  )
+  (list (list (if (eq *function-button-state* :play)
+		  15
+		  4)
+	      (if (eq *function-button-state* :stop)
+		  15
+		  6)
+	      (if (eq *function-button-state* :rec)
+		  15
+		  8)
+	      (if (eq *function-button-state* :del)
+		  15
+		  10))
+	(list (if (eq *emph-state* :emph)
+		  15
+		  4) ;; emph button
+	      6      ;; sync button
+	      8      ;; layering copy button
+	      10)    ;; appending copy button
+	(list (if (eq *ticker-strip-modifier-state* :grid-length)
+		  15
+		  10)
+	      (if (eq *ticker-strip-modifier-state* :timebase)
+		  15
+		  8)
+	      (if (eq *ticker-strip-modifier-state* :swing)
+		  15
+		  6)
+	      0))) ;; unused (currently calls #'mute)
 
 (defun fast-flash (on-intensity &optional (off-intensity 0))
   (if *fast-flash*
@@ -542,34 +541,31 @@
 
 (defun draw-section-sequence-states ()
   (loop for section in *sguenz-sections*
-     for i below (length *sguenz-sections*)
-     do (monome-set-led-intensity 0 i (if (eq *current-section*
-					      section)
-					  (if (find (car (get-sequences section))
+     collect (cons (if (eq *current-section*
+			   section)
+		       (if (find (car (get-sequences section))
+				 *copy-sources*)
+			   (fast-flash 15)
+			   15)
+		       (if (find (car (get-sequences section))
+				 *copy-sources*)
+			   (fast-flash 6)
+			   6))
+		   (loop for j from 1 to 3
+		      for seq in (cdr (get-sequences section))
+		      collect (if (empty-p seq)
+				  0
+				  (if (play-state seq)
+				      (if (rec-state seq)
+					  (slow-flash 15)
+					  (if (find (nth j (get-sequences section))
 						    *copy-sources*)
-						      (fast-flash 15)
-						      15)
-					  (if (find (car (get-sequences section))
-						    *copy-sources*)
-					      (fast-flash 6)
-					      6)))
-       (loop for j from 1 to 3
-	  for seq in (cdr (get-sequences section))
-	  do (sleep 0.001) ;; FIXME uuurgh! sleep is not cool
-	    (if (empty-p seq)
-		(monome-set-led-intensity j i 0)
-		(monome-set-led-intensity j i
-					  (if (play-state seq)
-					      (if (rec-state seq)
-						  (slow-flash 15)
-						  (if (find (nth j (get-sequences section))
-							    *copy-sources*)
-						      (fast-flash 15)
-						      15))
-					      (if (find (nth j (get-sequences section))
-							    *copy-sources*)
-						      (fast-flash 6)
-						      6)))))))
+					      (fast-flash 15)
+					      15))
+				      (if (find (nth j (get-sequences section))
+						*copy-sources*)
+					  (fast-flash 6)
+					  6)))))))
 
 (defvar *sguenz-has-focus* nil)
 
@@ -583,16 +579,21 @@
 (defun draw-grid ()
   ;; (monome-set-all 0)
   ;; (return-from draw-grid)
-  (when (and *sguenz-has-focus*
-	     (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*)))
-    (calculate-display-flashes)
-    (draw-step-sequencer)
-    (let ((row (draw-grid-seq-ticker)))
-      (monome-row-intensities 0 3 (subseq row 0 8))
-      (monome-row-intensities 8 3 (subseq row 8 16)))
-    (draw-utility-button-states)
-    (draw-section-sequence-states)
-    (setf *last-grid-draw* (get-internal-utime))))
+  (flet ((draw-whole-row (y row)
+	   (monome-row-intensities 0 y (subseq row 0 8))
+	   (monome-row-intensities 8 y (subseq row 8 16))))
+    (when (and *sguenz-has-focus*
+	       (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*)))
+      (calculate-display-flashes)
+      (draw-step-sequencer)
+      (draw-whole-row 3 (draw-grid-seq-ticker))
+      (loop for section-row in (draw-section-sequence-states)
+	 for util-row in (draw-utility-button-states)
+	 for i from 0
+	 do (draw-whole-row i (append section-row
+				      util-row
+				      (loop repeat 8 collect 0))))
+      (setf *last-grid-draw* (get-internal-utime)))))
 
 (defvar *sguenz-thread* nil)
 
