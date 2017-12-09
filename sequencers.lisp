@@ -407,7 +407,9 @@
 ;; 			(aref (grid from) from-index j)))))))
 
 (defmethod copy-sequence ((from grid-sequence) (to grid-sequence))
-  (loop for i below (grid-length from)
+  (loop for slot in '(beat-divisor grid-length play-state swing-ratio)
+     do (setf (slot-value to slot) (slot-value from slot)))
+  (loop for i below (car (array-dimensions (grid from)))
      do (loop for j below 4
 	   do (setf (aref (grid to) i j)
 		    (aref (grid from) i j)))))
