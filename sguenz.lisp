@@ -412,18 +412,15 @@
 			)))))))
 
 (defun draw-step-sequencer ()
-  (let ((whole-grid (append (loop for y below 4
-			       collect
-				 (loop for x below 16
-				    as cell = (aref (grid (get-active-grid)) x y)
-				    collect (or (and cell
-						     (if (eq cell :emph)
-							 15
-							 5))
-						0))))))
-    (loop for i below 8
-       do (monome-row-intensities 0 (+ i 4)
-				  (nth i whole-grid)))))
+  (append (loop for y below 4
+	     collect
+	       (loop for x below 16
+		  as cell = (aref (grid (get-active-grid)) x y)
+		  collect (or (and cell
+				   (if (eq cell :emph)
+				       15
+				       5))
+			      0)))))
 
 (defparameter *grid-section*
   (loop for y below 4
@@ -579,21 +576,16 @@
 (defun draw-grid ()
   ;; (monome-set-all 0)
   ;; (return-from draw-grid)
-  (flet ((draw-whole-row (y row)
-	   (monome-row-intensities 0 y (subseq row 0 8))
-	   (monome-row-intensities 8 y (subseq row 8 16))))
-    (when (and *sguenz-has-focus*
-	       (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*)))
-      (calculate-display-flashes)
-      (draw-step-sequencer)
-      (draw-whole-row 3 (draw-grid-seq-ticker))
-      (loop for section-row in (draw-section-sequence-states)
-	 for util-row in (draw-utility-button-states)
-	 for i from 0
-	 do (draw-whole-row i (append section-row
-				      util-row
-				      (loop repeat 8 collect 0))))
-      (setf *last-grid-draw* (get-internal-utime)))))
+  (when (and *sguenz-has-focus*
+	     (> (get-internal-utime) (+ *last-grid-draw* *draw-frame-length*)))
+    (calculate-display-flashes)
+    (monome-map-128 (append (mapcar #'append
+				    (draw-section-sequence-states)
+				    (draw-utility-button-states)
+				    (loop repeat 3 collect (loop repeat 8 collect 0)))
+			    (list (draw-grid-seq-ticker))
+			    (draw-step-sequencer)))
+    (setf *last-grid-draw* (get-internal-utime))))
 
 (defvar *sguenz-thread* nil)
 
