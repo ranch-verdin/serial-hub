@@ -98,7 +98,8 @@
 		     collect j)))
 
 (defmethod handle-event ((ev midi-performance-gesture))
-  (lookahead-store ev)
+  (unless *remix-record*
+    (lookahead-store ev))
   (mapcar (lambda (seq)
 	    (record-gesture ev seq))
 	  (get-section-phrases *current-section*)))
