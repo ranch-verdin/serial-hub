@@ -274,6 +274,13 @@
 (defmethod echo-gesture ((mess midi-performance-gesture))
   (write-midi-message mess))
 
+(defvar *remix-record* nil)
+
+(defmethod transmit-gesture :around ((g midi-performance-gesture))
+  (call-next-method)
+  (when *remix-record*
+    (handle-event g)))
+
 (defmethod transmit-gesture ((mess null))
   "don't blow up")
 
@@ -308,7 +315,7 @@
 		 (do-tick (slot-value *current-section* 'free-seq2))
 		 (do-tick (slot-value *current-section* 'free-seq3)))
     (mapcar (lambda (phrase)
-	        (when (play-state phrase)
+	        (when (eq (play-state phrase) :repeat)
 		  (mapcar #'transmit-gesture
 			  (read-gestures phrase))))
 	    (list (slot-value *current-section* 'grid-seq)
@@ -346,6 +353,10 @@
 (defparameter *ticker-strip-inputs*
   (loop for x below 16 collect (ticker-strip x)))
 
+(defun remix-record (up-or-down)
+  (format t "remix ~a~%" up-or-down)
+  (when (eq :press up-or-down)
+    (setf *remix-record* (not *remix-record*))))
 (defun rec (up-or-down)
   (format t "overdub ~a~%" up-or-down)
   (if (eq :press up-or-down)
@@ -404,7 +415,7 @@
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
 (defparameter *function-buttons*
-  (list (list nil nil #'rec #'del)
+  (list (list nil #'remix-record #'rec #'del)
 	(list #'emph #'sync #'layering-copy #'appending-copy)
 	(list #'set-grid-length #'timebase #'swing nil)))
 
@@ -519,7 +530,9 @@
 
 (defun draw-utility-button-states ()
   (list (list 0
-	      0
+	      (if *remix-record*
+		  15
+		  6)
 	      (if (eq *function-button-state* :rec)
 		  15
 		  8)
