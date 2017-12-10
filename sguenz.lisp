@@ -138,7 +138,9 @@
        (enqueue-section n)))))
 
 (defun phrase-selector (phrase-group phrase-idx)
+  (declare (optimize (debug 3)))
   (lambda (up-or-down)
+    (declare (optimize (debug 3)))
     (format t "section-~a-phrase ~a ~a~%" phrase-group phrase-idx up-or-down)
     (let* ((pushed-section (nth phrase-group *sguenz-sections*))
 	   (pushed-sequence (nth phrase-idx (get-sequences pushed-section))))
@@ -169,51 +171,52 @@
 	 (let ((play-state-before (play-state pushed-sequence)))
 	   (loop-cycle pushed-sequence (lookahead-dump))
 	   (when (eq pushed-section *current-section*)
-	     ;; XXX quick hack to quantise free-sequence lengths to 1
-	     ;; beat FIXME - the hack leads to downbeat tones not
-	     ;; sounding on first loop
-	     (print 'draining-hanging)
-	     (mapcar #'transmit-gesture (print (drain-hanging-tones pushed-sequence)))
-	     (when (eq play-state-before :push-extend)
-	       (let ((snapped-ticks (* *master-beat-divisor*
-				       (max 1
-					    (round (ticks-index pushed-sequence)
-						   *master-beat-divisor*))))
-		     (unsnapped-length (sequence-tick-length pushed-sequence)))
-		 (when (< unsnapped-length snapped-ticks);; this case
-							 ;; should
-							 ;; catch
-							 ;; stuck
-							 ;; notes on
-							 ;; loop end.
-							 ;; still need
-							 ;; to catch
-							 ;; missing
-							 ;; downbeat
-							 ;; bug
-		   (print 'early)
-		   (loop for i from unsnapped-length below snapped-ticks
-		      do (setf (aref (sequencers::fs-memory pushed-sequence)
-				     (- snapped-ticks 1))
-			       nil)
-			))
-		 (when (> unsnapped-length snapped-ticks)
-		   (print 'late)
-		   (loop for i from snapped-ticks below unsnapped-length
-		      do (push (aref (sequencers::fs-memory pushed-sequence)
-				     (- snapped-ticks 1))
-			       (aref (sequencers::fs-memory pushed-sequence)
-				     i))
-			)
-		   (loop for i below (print (-  unsnapped-length snapped-ticks))
-		      do (mapcar #'transmit-gesture
-				 (print (aref (sequencers::fs-memory pushed-sequence)
-					      i)))))
-		 (when (= snapped-ticks unsnapped-length)
-		   (print 'on-time))
-		 (setf (sequence-tick-length pushed-sequence)
-		       snapped-ticks)
-		 (setf *active-phrase* phrase-idx))))))))))
+	     (case play-state-before
+	       (:push-extend
+		;; (mapcar #'transmit-gesture (print )) ;; fixme -that ain't quite right
+		(let ((hanging-tones (drain-hanging-tones pushed-sequence))
+		      (snapped-ticks (* *master-beat-divisor*
+					(max 1
+					     (round (ticks-index pushed-sequence)
+						    *master-beat-divisor*))))
+		      (unsnapped-length (sequence-tick-length pushed-sequence)))
+		  (when (< unsnapped-length snapped-ticks)
+		    (print 'early)
+		    (setf (sequence-tick-length pushed-sequence)
+			  snapped-ticks)
+		    (loop for i from unsnapped-length below snapped-ticks
+		       do (setf (aref (sequencers::fs-memory pushed-sequence)
+				      (- snapped-ticks 1))
+				nil)
+			 ))
+		  (when (> unsnapped-length snapped-ticks)
+		    (print 'late)
+		    (loop for i from snapped-ticks below unsnapped-length
+		       do (push (aref (sequencers::fs-memory pushed-sequence)
+				      (- snapped-ticks 1))
+				(aref (sequencers::fs-memory pushed-sequence)
+				      i))
+			 )
+		    (loop for i below (-  unsnapped-length snapped-ticks)
+		       do (mapcar #'transmit-gesture
+				  (aref (sequencers::fs-memory pushed-sequence)
+					i)))
+		    (setf (sequence-tick-length pushed-sequence)
+			  snapped-ticks))
+		  (when (= snapped-ticks unsnapped-length)
+		    (print 'on-time)
+		    (setf (sequence-tick-length pushed-sequence)
+			  snapped-ticks))
+		  ;; (break "hanging tone cleanup ~a" hanging-tones)
+		  (print (list 'hanging hanging-tones))
+		  (setf (aref (sequencers::fs-memory pushed-sequence)
+		  	      (- snapped-ticks 1))
+		  	(append (aref (sequencers::fs-memory pushed-sequence)
+		  		      (- snapped-ticks 1))
+		  		hanging-tones))
+		  (setf *active-phrase* phrase-idx)))
+	       (otherwise
+		(mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence)))))))))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a

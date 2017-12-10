@@ -44,7 +44,8 @@
 
 (defmethod record-gesture (gesture (sequence grid-sequence))
   (declare (ignore gesture))
-  (warn "record for grid not implemented yet FIXME"))
+  ;; (warn "record for grid not implemented yet FIXME")
+  )
 
 (defgeneric sequence-tick-length (gesture-sequence))
 (defmethod sequence-tick-length ((seq grid-sequence))
@@ -282,18 +283,22 @@
       collect gesture)))
 
 (defmethod drain-hanging-rec-tones ((seq free-sequence))
-  (loop for rec-tone in (hanging-rec-tones seq)
-     do (record-gesture rec-tone seq))
-  (setf (hanging-rec-tones seq) nil))
+  ;; (when (hanging-rec-tones seq)
+  ;;   (break "monkey"))
+  (prog1 (loop for rec-tone in (hanging-rec-tones seq)
+	    collect rec-tone)
+    (setf (hanging-rec-tones seq) nil)))
 
 (defmethod drain-hanging-play-tones ((seq free-sequence))
+  ;; (when (hanging-play-tones seq)
+  ;;   (break "badger"))
   (prog1 (loop for play-tone in (hanging-play-tones seq)
 	    collect play-tone)
     (setf (hanging-play-tones seq) nil)))
 
 (defmethod drain-hanging-tones ((seq free-sequence))
-  (drain-hanging-rec-tones seq)
-  (drain-hanging-play-tones seq))
+  (append (drain-hanging-rec-tones seq)
+	  (drain-hanging-play-tones seq)))
 
 (defmethod drain-hanging-tones ((seq grid-sequence))
   )
@@ -315,12 +320,13 @@
 	(:repeat (setf (ticks-index seq)
 		       (- (ticks-index seq)
 			  (sequence-tick-length seq)))
-		 (drain-hanging-tones seq)))))
+		 ;; (drain-hanging-tones seq)
+		 ))))
   (ticks-index seq))
 
 (defgeneric erase-sequence (sequence))
 (defmethod erase-sequence ((seq free-sequence))
-  (loop for i below (sequence-tick-length seq)
+  (loop for i below (array-dimension (slot-value seq 'memory) 0)
      do (setf (aref (fs-memory seq) i) nil))
   (setf (fill-pointer (fs-memory seq)) 0)
   (setf (rec-state seq) nil)
@@ -360,7 +366,6 @@
   (setf (rec-state seq) :overdub))
 
 (defmethod rec-unarm ((seq free-sequence))
-  (drain-hanging-rec-tones seq)
   (setf (rec-state seq) nil))
 
 (defmethod rec-toggle ((seq free-sequence))
@@ -379,7 +384,8 @@
 		     (setf (fill-pointer (fs-memory seq))
 			   1)
 		     (setf (ticks-index seq) 0)
-		     (drain-hanging-tones seq)
+		     ;; (print (list 'loop-cycle-drain
+		     ;; 		  (drain-hanging-tones seq)))
 		     (rec-arm seq)
 		     (play-push-extend seq)
 		     (mapcar (lambda (g)
