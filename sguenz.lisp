@@ -214,7 +214,9 @@
 		  	(append (aref (sequencers::fs-memory pushed-sequence)
 		  		      (- snapped-ticks 1))
 		  		hanging-tones))
-		  (setf *active-phrase* phrase-idx)))
+		  (setf *active-phrase* phrase-idx))
+		(when *remix-record*
+		    (play-stop pushed-sequence)))
 	       (:repeat
 		(mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence)))
 	       (otherwise
