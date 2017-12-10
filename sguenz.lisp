@@ -1,5 +1,15 @@
 (in-package :sguenz)
 
+(defparameter *assigning-midi* nil)
+(defvar *selected-trigger* nil)
+
+(defun set-selected-trig-midi (ev seq)
+  (when *selected-trigger*
+    (setf (nth (cdr *selected-trigger*)
+	       (getf (gesture-map seq)
+		     (car *selected-trigger*)))
+	  ev)))
+
 (defun default-step-sequencer-triggers ()
   (list t (list (make-instance 'note-on-midi-message
 			       :raw-midi '(144 42 53)) ;; closed hh
@@ -96,6 +106,11 @@
 	   append (loop for j in i
 		     when j
 		     collect j)))
+
+(defmethod handle-event ((ev note-on-midi-message))
+  (if *assigning-midi*
+      (set-selected-trig-midi ev (get-active-grid))
+      (call-next-method)))
 
 (defmethod handle-event ((ev midi-performance-gesture))
   (unless *remix-record*
@@ -356,6 +371,10 @@
 (defparameter *ticker-strip-inputs*
   (loop for x below 16 collect (ticker-strip x)))
 
+(defun midi-assign (up-or-down)
+  (format t "midi-assign ~a~%" up-or-down)
+  (when (eq :press up-or-down)
+    (print (setf *assigning-midi* (not *assigning-midi*)))))
 (defun remix-record (up-or-down)
   (format t "remix ~a~%" up-or-down)
   (when (eq :press up-or-down)
@@ -418,7 +437,7 @@
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
 (defparameter *function-buttons*
-  (list (list nil #'remix-record #'rec #'del)
+  (list (list #'midi-assign #'remix-record #'rec #'del)
 	(list #'emph #'sync #'layering-copy #'appending-copy)
 	(list #'set-grid-length #'timebase #'swing nil)))
 
@@ -427,6 +446,7 @@
 (defun step-sequencer-button (x y)
   (declare (optimize (debug 3)))
   (lambda (up-or-down)
+    (setf *selected-trigger* (cons *emph-state* y))
     (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
     (symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
       (case up-or-down
