@@ -319,7 +319,7 @@
 		  (round (- (sequence-tick-length (get-active-grid))
 			    1)))
 	       *queued-section*)
-      ;; (seek-section-to 0 *queued-section*)
+      (seek-section-to 0 *queued-section*)
       (drain-section *current-section*)
       (setf *current-section* *queued-section*)
       (setf *queued-section* nil))
