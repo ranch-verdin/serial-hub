@@ -373,8 +373,7 @@
 
 (defun midi-assign (up-or-down)
   (format t "midi-assign ~a~%" up-or-down)
-  (when (eq :press up-or-down)
-    (print (setf *assigning-midi* (not *assigning-midi*)))))
+  (setf *assigning-midi* (eq :press up-or-down)))
 (defun remix-record (up-or-down)
   (format t "remix ~a~%" up-or-down)
   (when (eq :press up-or-down)
@@ -429,10 +428,12 @@
 (defun emph (up-or-down)
   (format t "emph ~a~%" up-or-down)
   (if (eq up-or-down :press)
-    (setf *emph-state*
-	  :emph)
-    (setf *emph-state*
-	  t)))
+      (setf *emph-state* :emph)
+      (setf *emph-state* t))
+  (when *assigning-midi*
+    (if (eq up-or-down :press)
+	(setf (car *selected-trigger*) :emph)
+	(setf (car *selected-trigger*) t))))
 (defun toggle-arrange-or-rec-mode (up-or-down)
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
@@ -446,25 +447,26 @@
 (defun step-sequencer-button (x y)
   (declare (optimize (debug 3)))
   (lambda (up-or-down)
-    (setf *selected-trigger* (cons *emph-state* y))
     (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
-    (symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
-      (case up-or-down
-	(:press (setf button-emph
-		      (match (print (list *emph-state* button-emph))
-			((list :emph nil)
-			 (setf button-emph :emph))
-			((list :emph t)
-			 (setf button-emph :emph))
-			((list :emph :emph)
-			 (setf button-emph t))
-			((list t nil)
-			 (setf button-emph t))
-			((list t t)
-			 (setf button-emph nil))
-			((list t :emph)
-			 (setf button-emph nil))
-			)))))))
+    (if *assigning-midi*
+	(setf *selected-trigger* (cons *emph-state* y))
+	(symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
+	  (case up-or-down
+	    (:press (setf button-emph
+			  (match (print (list *emph-state* button-emph))
+			    ((list :emph nil)
+			     (setf button-emph :emph))
+			    ((list :emph t)
+			     (setf button-emph :emph))
+			    ((list :emph :emph)
+			     (setf button-emph t))
+			    ((list t nil)
+			     (setf button-emph t))
+			    ((list t t)
+			     (setf button-emph nil))
+			    ((list t :emph)
+			     (setf button-emph nil))
+			    ))))))))
 
 (defun draw-step-sequencer ()
   (append (loop for y below 4
@@ -475,7 +477,12 @@
 				   (if (eq cell :emph)
 				       15
 				       5))
-			      0)))))
+			      (if (and *assigning-midi*
+				       (= y (cdr *selected-trigger*)))
+				  (if (eq (car *selected-trigger*) :emph)
+				      (slow-flash 15)
+				      (slow-flash 5))
+				  0))))))
 
 (defparameter *grid-section*
   (loop for y below 4
@@ -552,7 +559,9 @@
 			(t 0)))))))
 
 (defun draw-utility-button-states ()
-  (list (list 0
+  (list (list (if *assigning-midi*
+		  15
+		  4)
 	      (if *remix-record*
 		  15
 		  6)
