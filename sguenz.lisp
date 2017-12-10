@@ -215,8 +215,12 @@
 		  		      (- snapped-ticks 1))
 		  		hanging-tones))
 		  (setf *active-phrase* phrase-idx)))
+	       (:repeat
+		(mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence)))
 	       (otherwise
-		(mapcar #'transmit-gesture (drain-hanging-tones pushed-sequence)))))))))))
+		(drain-hanging-tones pushed-sequence)
+		(mapcar #'transmit-gesture
+			(read-gestures pushed-sequence)))))))))))
 
 (defparameter *phrase-section-layout*
   (list (cons #'section-a
