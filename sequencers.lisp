@@ -27,7 +27,10 @@
 		:accessor grid-length)
    (gesture-map :initarg :gesture-map
 		:initform nil
-		:accessor gesture-map)))
+		:accessor gesture-map)
+   (cache-grid-crossing-point :initarg :cache-grid-crossing-point
+			      :initform 0
+			      :accessor cache-grid-crossing-point)))
 
 (defun make-grid-sequence (x y gesture-map &key (grid-length 16) (beat-divisor 4) (swing 0.0) (play-state :repeat))
   (make-instance 'grid-sequence
@@ -83,6 +86,8 @@
 (defmethod read-gestures ((seq grid-sequence))
   (let ((grid-crossing (grid-crossing-point seq)))
     (when grid-crossing
+      (setf (cache-grid-crossing-point seq)
+	    (ticks-index seq))
       (loop for y below (cadr (array-dimensions (grid seq)))
 	 collect (resolve-gesture seq
 				  y

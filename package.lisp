@@ -54,6 +54,7 @@
 	   #:play-state #:rec-state #:empty-p
 	   #:rec-arm #:rec-unarm #:rec-toggle
 	   #:loop-cycle #:grid-position
+	   #:cache-grid-crossing-point
 	   #:drain-hanging-tones))
 
 

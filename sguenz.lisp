@@ -543,7 +543,7 @@
 				     (mod i current-timebase)))))))
       (otherwise
        (loop for i below 16
-	  collect (cond ((= i (floor (* (/ (ticks-index (get-active-grid))
+	  collect (cond ((= i (floor (* (/ (cache-grid-crossing-point (get-active-grid))
 					  *master-beat-divisor*)
 				       (beat-divisor (get-active-grid)))))
 			 15)
