@@ -323,14 +323,16 @@
 (defun ticker-strip (chan)
   (lambda (up-or-down)
     (when (eq :press up-or-down)
-      (case *ticker-strip-modifier-state*
-	(:swing (setf (swing-ratio (get-active-grid))
-		      (/ chan 16)))
-	(:timebase (setf (beat-divisor (get-active-grid))
-			 (+ chan 1)))
-	(:grid-length (set-quantised-pattern-duration
-		       (+ 1 chan)))
-	(otherwise (scrub-to-quantised-point chan))))))
+      (case *lower-half-mode*
+	(:grid (case *ticker-strip-modifier-state*
+		 (:swing (setf (swing-ratio (get-active-grid))
+			       (/ chan 16)))
+		 (:timebase (setf (beat-divisor (get-active-grid))
+				  (+ chan 1)))
+		 (:grid-length (set-quantised-pattern-duration
+				(+ 1 chan)))
+		 (otherwise (scrub-to-quantised-point chan))))
+	(:bass (bass-ticker-press chan))))))
 
 (defun scrub-to-quantised-point (chan)
   (setf (grid-position (get-active-grid))
@@ -470,6 +472,14 @@
   (if (eq :press up-or-down)
       (setf *ticker-strip-modifier-state* :swing)
       (setf *ticker-strip-modifier-state* nil)))
+(defvar *lower-half-mode* :grid)
+(defun lower-half-mode (up-or-down)
+  (format t "lower-half-mode ~a~%" up-or-down)
+  (when (eq :press up-or-down)
+    (setf *lower-half-mode*
+	  (case *lower-half-mode*
+	    (:grid :bass)
+	    (:bass :grid)))))
 
 (defun sync (up-or-down)
   (format t "sync ~a~%" up-or-down)
@@ -488,36 +498,48 @@
 (defun toggle-arrange-or-rec-mode (up-or-down)
   (format t "toggle-arrange-or-rec-mode ~a~%" up-or-down))
 
+(defun lower-half-button-1 (up-or-down)
+  (case *lower-half-mode*
+    (:grid (set-grid-length up-or-down))
+    (:bass (setf *bass-grid-ticker-function* :volume))))
+(defun lower-half-button-2 (up-or-down)
+  (case *lower-half-mode*
+    (:grid (timebase up-or-down))
+    (:bass (setf *bass-grid-ticker-function* :octave))))
+(defun lower-half-button-3 (up-or-down)
+  (case *lower-half-mode*
+    (:grid (set-grid-length up-or-down))
+    (:bass (setf *bass-grid-ticker-function* :channel))))
+
 (defparameter *function-buttons*
   (list (list #'midi-assign #'remix-record #'rec #'del)
 	(list #'emph #'sync #'layering-copy #'appending-copy)
-	(list #'set-grid-length #'timebase #'swing nil)))
+	(list #'lower-half-button-1 #'lower-half-button-2 #'lower-half-button-3 #'lower-half-mode)))
 
 (defparameter *emph-state* t)
 
-(defun step-sequencer-button (x y)
+(defun step-sequencer-button (x y up-or-down)
   (declare (optimize (debug 3)))
-  (lambda (up-or-down)
-    (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
-    (setf *selected-trigger* (cons *emph-state* y))
-    (unless *assigning-midi*
-	(symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
-	  (case up-or-down
-	    (:press (setf button-emph
-			  (match (print (list *emph-state* button-emph))
-			    ((list :emph nil)
-			     (setf button-emph :emph))
-			    ((list :emph t)
-			     (setf button-emph :emph))
-			    ((list :emph :emph)
-			     (setf button-emph t))
-			    ((list t nil)
-			     (setf button-emph t))
-			    ((list t t)
-			     (setf button-emph nil))
-			    ((list t :emph)
-			     (setf button-emph nil))
-			    ))))))))
+  (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
+  (setf *selected-trigger* (cons *emph-state* y))
+  (unless *assigning-midi*
+    (symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
+      (case up-or-down
+	(:press (setf button-emph
+		      (match (print (list *emph-state* button-emph))
+			((list :emph nil)
+			 (setf button-emph :emph))
+			((list :emph t)
+			 (setf button-emph :emph))
+			((list :emph :emph)
+			 (setf button-emph t))
+			((list t nil)
+			 (setf button-emph t))
+			((list t t)
+			 (setf button-emph nil))
+			((list t :emph)
+			 (setf button-emph nil))
+			)))))))
 
 (defun draw-step-sequencer ()
   (append (loop for y below 4
@@ -535,15 +557,63 @@
 				      (slow-flash 5))
 				  0))))))
 
-(defparameter *grid-section*
+(defparameter *bass-grid-leds*
+  (loop for i below 4
+     collect (loop for j below 16
+		collect 0)))
+(defvar *bass-grid-volume* 127)
+(defvar *bass-grid-midi-channel* 2)
+(defvar *bass-grid-root-note* 48)
+(defvar *bass-grid-ticker-function* :octave)
+
+(defun bass-ticker-press (chan)
+  (case *bass-grid-ticker-function*
+    (:octave (when (< (* chan 12) 128)
+	       (setf *bass-grid-root-note* (* chan 12))))
+    (:volume (setf *bass-grid-volume* (min (* chan 8) 127)))
+    (:channel (setf *bass-grid-midi-channel* chan))))
+
+(defun bass-grid-ticker-pos ()
+  (case *bass-grid-ticker-function*
+    (:octave (floor *bass-grid-root-note* 12))
+    (:volume (floor *bass-grid-volume* 8))
+    (:channel *bass-grid-midi-channel*)))
+(defun draw-bass-grid-ticker-strip ()
+  (loop for i below 16
+     collect (if (= (bass-grid-ticker-pos) i)
+		 15
+		 4)))
+
+(defun bass-button (j i up-or-down)
+  (let* ((note-idx (+ *bass-grid-root-note*
+		      j (* (- 3 i) 5)))
+	 (g (if (eq :press up-or-down)
+	       (make-midi-note-on *bass-grid-midi-channel*
+				  note-idx)
+	       (make-midi-note-off *bass-grid-midi-channel*
+				   note-idx))))
+    (setf (nth j (nth i *bass-grid-leds*))
+	  (if (eq :press up-or-down)
+	      15
+	      0))
+    (print (list up-or-down j i))
+    (transmit-gesture g)
+    (handle-event g)))
+
+(defparameter *bottom-half-buttons*
   (loop for y below 4
      collect (loop for x below 16
-		collect (step-sequencer-button x y))))
+		collect (let ((y y)
+			      (x x))
+			  (lambda (up-or-down)
+			    (case *lower-half-mode*
+			      (:grid (step-sequencer-button x y up-or-down))
+			      (:bass (bass-button x y up-or-down))))))))
 
 (defparameter *whole-grid*
   (append (mapcar #'append *phrase-section-layout* *function-buttons* *gm-drum-triggers*)
 	  (list *ticker-strip-inputs*)
-	  *grid-section*))
+	  *bottom-half-buttons*))
 
 (defmethod handle-event ((event monome-button-event))
   (let ((x (slot-value event 'x))
@@ -628,16 +698,27 @@
 	      6      ;; sync button
 	      8      ;; layering copy button
 	      10)    ;; appending copy button
-	(list (if (eq *ticker-strip-modifier-state* :grid-length)
-		  15
-		  4)
-	      (if (eq *ticker-strip-modifier-state* :timebase)
-		  15
-		  6)
-	      (if (eq *ticker-strip-modifier-state* :swing)
-		  15
-		  8)
-	      0)))
+	(case *lower-half-mode*
+	  (:grid (list (if (eq *ticker-strip-modifier-state* :grid-length)
+			  15
+			  4)
+		      (if (eq *ticker-strip-modifier-state* :timebase)
+			  15
+			  6)
+		      (if (eq *ticker-strip-modifier-state* :swing)
+			  15
+			  8)
+		      15))
+	  (:bass (list (if (eq *bass-grid-ticker-function* :volume)
+			   15
+			   4)
+		       (if (eq *bass-grid-ticker-function* :octave)
+			   15
+			   6)
+		       (if (eq *bass-grid-ticker-function* :channel)
+			   15
+			   8)
+		       10)))))
 
 (defun fast-flash (on-intensity &optional (off-intensity 0))
   (if *fast-flash*
@@ -700,8 +781,12 @@
 				    (draw-section-sequence-states)
 				    (draw-utility-button-states)
 				    *gm-drum-leds*)
-			    (list (draw-grid-seq-ticker))
-			    (draw-step-sequencer)))
+			    (list (case *lower-half-mode*
+				    (:grid (draw-grid-seq-ticker))
+				    (:bass (draw-bass-grid-ticker-strip))))
+			    (case *lower-half-mode*
+			      (:grid (draw-step-sequencer))
+			      (:bass *bass-grid-leds*))))
     (setf *last-grid-draw* (get-internal-utime))))
 
 (defvar *sguenz-thread* nil)
