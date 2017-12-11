@@ -448,8 +448,8 @@
   (declare (optimize (debug 3)))
   (lambda (up-or-down)
     (format t "step-sequencer-button ~a ~a ~a~%" x y up-or-down)
-    (if *assigning-midi*
-	(setf *selected-trigger* (cons *emph-state* y))
+    (setf *selected-trigger* (cons *emph-state* y))
+    (unless *assigning-midi*
 	(symbol-macrolet ((button-emph (aref (grid (get-active-grid)) x y)))
 	  (case up-or-down
 	    (:press (setf button-emph
