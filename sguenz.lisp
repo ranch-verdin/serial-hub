@@ -1,7 +1,7 @@
 (in-package :sguenz)
 
 (defparameter *assigning-midi* nil)
-(defvar *selected-trigger* nil)
+(defvar *selected-trigger* '(t . 0))
 
 (defun set-selected-trig-midi (ev seq)
   (when *selected-trigger*
