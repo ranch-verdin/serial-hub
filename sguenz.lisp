@@ -29,6 +29,57 @@
 				   :raw-midi '(144 36 111))) ;; long kick
 	))
 
+(defparameter *gm-drum-notes*
+  (mapcar (lambda (note-num)
+	    (make-instance 'note-on-midi-message
+			   :raw-midi `(144 ,note-num 127)))
+	  (list
+	   35 ;; Bass Drum 2
+	   36 ;; Bass Drum 1
+	   37 ;; Side Stick
+	   38 ;; Snare Drum 1
+	   39 ;; Hand Clap
+	   40 ;; Snare Drum 2
+	   41 ;; Low Tom 2
+	   42 ;; Closed Hi-hat
+	   43 ;; Low Tom 1
+	   44 ;; Pedal Hi-hat
+	   45 ;; Mid Tom 2
+	   46 ;; Open Hi-hat
+	   47 ;; Mid Tom 1
+	   48 ;; High Tom 2
+	   49 ;; Crash Cymbal 1
+	   50 ;; High Tom 1
+	   51 ;; Ride Cymbal 1
+	   52 ;; Chinese Cymbal
+	   53 ;; Ride Bell
+	   54 ;; Tambourine
+	   55 ;; Splash Cymbal
+	   56 ;; Cowbell
+	   )))
+
+(defparameter *gm-drum-leds*
+  (loop for i below 3
+     collect (loop for j below 8
+		collect 0)))
+
+(defparameter *gm-drum-triggers*
+  (loop for i below 3
+     collect (loop for j below 7
+		collect (let ((note-event (nth (+ (* i 7)
+						  j)
+					       *gm-drum-notes*))
+			      (i i)
+			      (j j))
+			  (lambda (press)
+			    (when (eq press :press)
+			      (transmit-gesture note-event)
+			      (handle-event note-event))
+			    (setf (nth j (nth i *gm-drum-leds*))
+				  (if (eq press :press)
+				      15
+				      0)))))))
+
 (defclass section ()
   ((grid-seq :initform (make-grid-sequence 16 4
 					   (default-step-sequencer-triggers)
@@ -490,7 +541,7 @@
 		collect (step-sequencer-button x y))))
 
 (defparameter *whole-grid*
-  (append (mapcar #'append *phrase-section-layout* *function-buttons*)
+  (append (mapcar #'append *phrase-section-layout* *function-buttons* *gm-drum-triggers*)
 	  (list *ticker-strip-inputs*)
 	  *grid-section*))
 
@@ -648,7 +699,7 @@
     (monome-map-128 (append (mapcar #'append
 				    (draw-section-sequence-states)
 				    (draw-utility-button-states)
-				    (loop repeat 3 collect (loop repeat 8 collect 0)))
+				    *gm-drum-leds*)
 			    (list (draw-grid-seq-ticker))
 			    (draw-step-sequencer)))
     (setf *last-grid-draw* (get-internal-utime))))
