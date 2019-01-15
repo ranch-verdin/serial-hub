@@ -508,7 +508,7 @@
     (:bass (setf *bass-grid-ticker-function* :octave))))
 (defun lower-half-button-3 (up-or-down)
   (case *lower-half-mode*
-    (:grid (set-grid-length up-or-down))
+    (:grid (swing up-or-down))
     (:bass (setf *bass-grid-ticker-function* :channel))))
 
 (defparameter *function-buttons*
