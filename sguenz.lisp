@@ -762,14 +762,14 @@
 					  (fast-flash 6)
 					  6)))))))
 
-(defvar *sguenz-has-focus* nil)
+(defvar *sguenz-has-focus* t)
 
 ;; FIXME this should be handled in monome/OSC backend.  draw-grid
 ;; should be a callback, circumventing the need for app to know about
 ;; focus
-(defmethod handle-event ((event monome-focus-event))
-  (setf *sguenz-has-focus* (focus event))
-  (draw-grid))
+;; (defmethod handle-event ((event monome-focus-event))
+;;   (setf *sguenz-has-focus* (focus event))
+;;   (draw-grid))
 
 (defun draw-grid ()
   ;; (monome-set-all 0)
@@ -800,7 +800,7 @@
   (with-midi-oss-out (*default-midi-out-stream*
 		      *default-midi-out-dev*)
     (with-monome-output ()
-      (grab-focus)
+      ;; (grab-focus)
       ;; (with-midi-uart-out (*rang-output-stream* "/dev/ttyS2")
       (unwind-protect
 	   (loop (let ((mess (? *reader-ochan*)))
@@ -827,6 +827,6 @@
 
 (defun sguenz-grab-focus ()
   (with-monome-output ()
-    (grab-focus)
+    ;; (grab-focus)
     (sleep 0.1)
     (draw-grid)))

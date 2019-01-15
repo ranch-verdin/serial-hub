@@ -27,7 +27,7 @@
            #:ev-tick #:ev-microtick))
 
 (defpackage #:monome-glue
-  (:use #:cl #:monome-serialosc #:cffi #:serial-hub-utils #:calispel)
+  (:use #:cl #:monome-serialraw #:cffi #:serial-hub-utils #:calispel)
   (:export #:start-monome-reader  #:stop-monome-reader))
 
 (defpackage #:serial-hub
@@ -59,5 +59,5 @@
 
 
 (defpackage #:sguenz
-  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:monome-serialosc #:cl-rtmidi #:sequencers #:serial-hub-utils #:boomerang #:optima)
-  (:export #:start-sguenz-app #:sguenz-grab-focus))
+  (:use #:cl #:serial-hub #:calispel #:monome-glue #:midi-glue #:monome-serialraw #:cl-rtmidi #:sequencers #:serial-hub-utils #:boomerang #:optima)
+  (:export #:start-sguenz-app #:stop-sguenz-app #:sguenz-grab-focus))
