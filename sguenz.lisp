@@ -11,23 +11,41 @@
 	  ev)))
 
 (defun default-step-sequencer-triggers ()
-  (list t (list (make-instance 'note-on-midi-message
-			       :raw-midi '(144 42 53)) ;; closed hh
+  (list t (list (make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_hatz_hh" 1.0)) ;; closed hh
 		(make-instance 'note-off-midi-message
 			       :raw-midi '(144 47 81)) ;; tom Lo
-		(make-instance 'note-on-midi-message
-			       :raw-midi '(144 37 68)) ;; rimshot
-		(make-instance 'note-on-midi-message
-			       :raw-midi '(144 35 111))) ;; kick
-	:emph (list (make-instance 'note-on-midi-message
-				   :raw-midi '(144 46 53)) ;; open hh
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_sd_sd" 1.0)) ;; snare
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_bd_bd" 1.0))) ;; kick
+	:emph (list (make-instance 'osc-trigger
+				   :raw-osc (osc:encode-message "/command/sgynth_hatz_oh" 1.0)) ;; open hh
 		    (make-instance 'note-off-midi-message
 				   :raw-midi '(144 48 81)) ;; Tom Hi
-		    (make-instance 'note-on-midi-message
-				   :raw-midi '(144 38 68)) ;; snare
-		    (make-instance 'note-on-midi-message
-				   :raw-midi '(144 36 111))) ;; long kick
+		    (make-instance 'osc-trigger
+				   :raw-osc (osc:encode-message "/command/sgynth_cp_cp" 1.0)) ;; rimshot
+		    (make-instance 'osc-trigger
+				   :raw-osc (osc:encode-message "/command/sgynth_bd_bl" 1.0))) ;; long kick
 	))
+
+#+nil
+(let ((out (socket-connect #(127 0 0 1) 57120
+				  :protocol :datagram
+				  :element-type '(unsigned-byte 8))))
+		    (unwind-protect
+			 (let ((mess (osc:encode-message "/engine/load/name" "./sgynth.so")))
+			   (socket-send out mess (length mess)))
+		      (when out (socket-close out))))
+
+#+nil
+(let ((out (socket-connect #(127 0 0 1) 57120
+			   :protocol :datagram
+			   :element-type '(unsigned-byte 8))))
+  (unwind-protect
+       (let ((mess (osc:encode-message "/command/sgynth_string_string3_gate" 1.0)))
+	 (socket-send out mess (length mess)))
+    (when out (socket-close out))))
 
 (defparameter *gm-drum-notes*
   (mapcar (lambda (note-num)
@@ -124,7 +142,7 @@
 (defvar *sguenz-sections* (loop for i below 3
 			     collect (new-section)))
 
-(defvar *current-section* (car *sguenz-sections*))
+(defvar  *current-section* (car *sguenz-sections*))
 
 (defvar *active-phrase* 0)
 
@@ -355,8 +373,15 @@
 (defmethod transmit-gesture ((mess null))
   "don't blow up")
 
+(defgeneric transmit-gesture (mess))
+
 (defmethod transmit-gesture ((mess midi-performance-gesture))
   (write-midi-message mess))
+
+(defmethod transmit-gesture ((mess-obj osc-message))
+  (let ((mess (slot-value mess-obj 'raw-osc)))
+    ;; (print (osc:decode-bundle mess))
+    (usocket:socket-send *sgynth-socket* mess (length mess))))
 
 (defun get-active-grid ()
   (slot-value *current-section* 'grid-seq))

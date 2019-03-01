@@ -17,10 +17,12 @@
 				     (:file "clock")
 				     (:file "midi-glue")))
 	       (:file "monome-glue")
+	       (:file "oscglue")
 	       (:file "serial-hub")
 	       (:file "sequencers")
 	       (:file "sguenz"))
   :depends-on (:optima :cffi
 		       :iterate :external-program :calispel
-		       :cl-monome :cl-ppcre :iolib :cl-rtmidi))
+		       :cl-monome :cl-ppcre :iolib :cl-rtmidi
+		       :osc :usocket))
 
