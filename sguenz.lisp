@@ -29,52 +29,46 @@
 				   :raw-osc (osc:encode-message "/command/sgynth_bd_bl" 1.0))) ;; long kick
 	))
 
-#+nil
-(let ((out (socket-connect #(127 0 0 1) 57120
-				  :protocol :datagram
-				  :element-type '(unsigned-byte 8))))
-		    (unwind-protect
-			 (let ((mess (osc:encode-message "/engine/load/name" "./sgynth.so")))
-			   (socket-send out mess (length mess)))
-		      (when out (socket-close out))))
-
-#+nil
-(let ((out (socket-connect #(127 0 0 1) 57120
-			   :protocol :datagram
-			   :element-type '(unsigned-byte 8))))
-  (unwind-protect
-       (let ((mess (osc:encode-message "/command/sgynth_string_string3_gate" 1.0)))
-	 (socket-send out mess (length mess)))
-    (when out (socket-close out))))
-
 (defparameter *gm-drum-notes*
-  (mapcar (lambda (note-num)
-	    (make-instance 'note-on-midi-message
-			   :raw-midi `(144 ,note-num 127)))
-	  (list
-	   35 ;; Bass Drum 2
-	   36 ;; Bass Drum 1
-	   37 ;; Side Stick
-	   38 ;; Snare Drum 1
-	   39 ;; Hand Clap
-	   40 ;; Snare Drum 2
-	   41 ;; Low Tom 2
-	   42 ;; Closed Hi-hat
-	   43 ;; Low Tom 1
-	   44 ;; Pedal Hi-hat
-	   45 ;; Mid Tom 2
-	   46 ;; Open Hi-hat
-	   47 ;; Mid Tom 1
-	   48 ;; High Tom 2
-	   49 ;; Crash Cymbal 1
-	   50 ;; High Tom 1
-	   51 ;; Ride Cymbal 1
-	   52 ;; Chinese Cymbal
-	   53 ;; Ride Bell
-	   54 ;; Tambourine
-	   55 ;; Splash Cymbal
-	   56 ;; Cowbell
-	   )))
+  (append (list (make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_bd_bl" 1.0))
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_bd_bd" 1.0))
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_sd_sd" 1.0))
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_hatz_hh" 1.0))
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_hatz_oh" 1.0))
+		(make-instance 'osc-trigger
+			       :raw-osc (osc:encode-message "/command/sgynth_cp_cp" 1.0)))
+	  (mapcar (lambda (note-num)
+		    (make-instance 'note-on-midi-message
+				   :raw-midi `(144 ,note-num 127)))
+		  (list
+		   35 ;; Bass Drum 2
+		   36 ;; Bass Drum 1
+		   37 ;; Side Stick
+		   38 ;; Snare Drum 1
+		   39 ;; Hand Clap
+		   40 ;; Snare Drum 2
+		   41 ;; Low Tom 2
+		   42 ;; Closed Hi-hat
+		   43 ;; Low Tom 1
+		   44 ;; Pedal Hi-hat
+		   45 ;; Mid Tom 2
+		   46 ;; Open Hi-hat
+		   47 ;; Mid Tom 1
+		   48 ;; High Tom 2
+		   49 ;; Crash Cymbal 1
+		   50 ;; High Tom 1
+		   51 ;; Ride Cymbal 1
+		   52 ;; Chinese Cymbal
+		   53 ;; Ride Bell
+		   54 ;; Tambourine
+		   55 ;; Splash Cymbal
+		   56 ;; Cowbell
+		   ))))
 
 (defparameter *gm-drum-leds*
   (loop for i below 3
@@ -147,6 +141,9 @@
 (defvar *active-phrase* 0)
 
 (defgeneric handle-event (ev))
+
+(defmethod handle-event ((ev t))
+  (warn "unknown event received: ~a" ev))
 
 (defmethod handle-event ((ev t))
   (warn "unknown event received: ~a" ev))
@@ -609,21 +606,37 @@
 		 15
 		 4)))
 
+(defun make-bass-note (i note-idx gate)
+  (if (> gate 0)
+      (let ((foo (format nil "/command/sgynth_string_string~a_freq" (+ i 1)))
+	    (bar (format nil "/command/sgynth_string_string~a_gate" (+ i 1))))
+	(list (make-instance 'osc-trigger
+			     :raw-osc (osc:encode-message foo (* 20 (expt 2 (/ note-idx 12)))))
+	      (make-instance 'osc-trigger
+			     :raw-osc (osc:encode-message bar gate))))))
+
+#+nil
+(defun make-bass-note (i note-idx gate)
+  (let ((foo (format nil "/command/sgynth_organ_voice~a_freq" (+ i 1)))
+	(bar (format nil "/command/sgynth_organ_voice~a_gate" (+ i 1))))
+    (list (make-instance 'osc-trigger
+			 :raw-osc (osc:encode-message foo (* 20 (expt 2 (/ note-idx 12)))))
+	  (make-instance 'osc-trigger
+			 :raw-osc (osc:encode-message bar gate)))))
+
 (defun bass-button (j i up-or-down)
   (let* ((note-idx (+ *bass-grid-root-note*
 		      j (* (- 3 i) 5)))
 	 (g (if (eq :press up-or-down)
-	       (make-midi-note-on *bass-grid-midi-channel*
-				  note-idx)
-	       (make-midi-note-off *bass-grid-midi-channel*
-				   note-idx))))
+		(make-bass-note i note-idx 1)
+		(make-bass-note i note-idx 0))))
     (setf (nth j (nth i *bass-grid-leds*))
 	  (if (eq :press up-or-down)
 	      15
 	      0))
     (print (list up-or-down j i))
-    (transmit-gesture g)
-    (handle-event g)))
+    (mapcar #'transmit-gesture g)
+    (mapcar #'handle-event g)))
 
 (defparameter *bottom-half-buttons*
   (loop for y below 4
@@ -817,7 +830,7 @@
 (defvar *sguenz-thread* nil)
 
 (eval-when (:compile-toplevel :load-toplevel)
-  (defvar *default-midi-out-dev*
+  (defparameter *default-midi-out-dev*
     (or (get-oss-midi-dev-named "E-MU")
 	(get-virmidi 0))))
 
@@ -847,7 +860,7 @@
 			:name "sguenz-app")))
 
 (defun stop-sguenz-app ()
-  (bt:destroy-thread *sguenz-thread*)
+  (ignore-errors (bt:destroy-thread *sguenz-thread*))
   (setf *sguenz-thread* nil))
 
 (defun sguenz-grab-focus ()
