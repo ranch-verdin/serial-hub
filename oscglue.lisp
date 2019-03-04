@@ -91,3 +91,6 @@
 	(remove gesture (sequencers::hanging-play-tones seq)
 		:test #'osc-note=)))
 
+(defclass osc-96ppqn-tick
+    ()
+  ())

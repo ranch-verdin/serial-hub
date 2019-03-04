@@ -480,6 +480,10 @@
   (inc-ticker)
   (draw-grid))
 
+(defmethod handle-event ((mess osc-96ppqn-tick))
+  (inc-ticker)
+  (draw-grid))
+
 (defmethod handle-event ((mess stop-midi-message))
   (drain-section *current-section*))
 
@@ -912,6 +916,11 @@
   (sleep 0.1)
   (ignore-errors (start-midi-reader))
   (sleep 0.1)
+  ;; XXX hack eeeewww...
+  (bt:make-thread (lambda ()
+		    (loop (! *reader-ochan*
+			     (make-instance 'osc-96ppqn-tick))
+		       (sleep 0.005))))
   (setf *sguenz-thread*
 	(bt:make-thread #'sguenz-main
 			:name "sguenz-app")))

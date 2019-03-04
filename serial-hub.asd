@@ -17,9 +17,9 @@
 				     (:file "clock")
 				     (:file "midi-glue")))
 	       (:file "monome-glue")
-	       (:file "oscglue")
 	       (:file "serial-hub")
 	       (:file "sequencers")
+	       (:file "oscglue")
 	       (:file "sguenz"))
   :depends-on (:optima :cffi
 		       :iterate :external-program :calispel

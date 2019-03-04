@@ -1,6 +1,6 @@
 (in-package :sequencers)
 
-(defparameter *master-beat-divisor* 24)
+(defparameter *master-beat-divisor* 96)
 
 (defclass gesture-sequence ()
   ((ticks-index :initarg :ticks-index
