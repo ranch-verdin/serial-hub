@@ -397,28 +397,39 @@
 (defmethod transmit-gesture ((mess midi-performance-gesture))
   (write-midi-message mess))
 
+(defun sguenz-send-osc-message (address &rest args)
+  (let ((mess (apply #'osc:encode-message (cons address args))))
+    (usocket:socket-send *sgynth-socket* mess (length mess))))
+
 (defmethod transmit-gesture ((mess-obj osc-trigger))
-  ;; (print 'transmit-trigger)
-  (let ((mess (osc:encode-message (slot-value mess-obj 'gate-address)
-				  (float (slot-value mess-obj 'volume)))))
-    ;; (print (osc:decode-bundle mess))
-    (usocket:socket-send *sgynth-socket* mess (length mess))))
+  (sguenz-send-osc-message (slot-value mess-obj 'gate-address)
+			   (float (slot-value mess-obj 'volume))))
 
-(defmethod transmit-gesture ((mess-obj osc-noteon))
+(defmethod transmit-gesture ((gesture osc-noteon))
   ;; (print 'transmit-trigger)
-  (let ((freqmess (osc:encode-message (slot-value mess-obj 'freq-address)
-				      (float (slot-value mess-obj 'freq))))
-	(gatemess (osc:encode-message (slot-value mess-obj 'gate-address)
-				      (float (slot-value mess-obj 'volume)))))
-    ;; (print (osc:decode-bundle mess))
-    (usocket:socket-send *sgynth-socket* freqmess (length freqmess))
-    (usocket:socket-send *sgynth-socket* gatemess (length gatemess))))
+  (transmit-gesture-via-voice-transmitter gesture (slot-value gesture 'transmitter)))
 
-(defmethod transmit-gesture ((mess-obj osc-noteoff))
+(defmethod transmit-gesture ((gesture osc-noteoff))
   ;; (print 'transmit-trigger)
-  (let ((mess (osc:encode-message (slot-value mess-obj 'gate-address) 0.0)))
-    ;; (print (osc:decode-bundle mess))
-    (usocket:socket-send *sgynth-socket* mess (length mess))))
+  (transmit-gesture-via-voice-transmitter gesture (slot-value gesture 'transmitter)))
+
+(defmethod transmit-gesture-via-voice-transmitter ((gesture osc-noteon) (transmitter gesture-transmitter))
+  (pushnew (float (slot-value gesture 'freq))
+	   (slot-value transmitter 'hanging-tones)
+	   :test #'equal)
+  (sguenz-send-osc-message (slot-value transmitter 'freq-address)
+			   (float (slot-value gesture 'freq)))
+  (sguenz-send-osc-message (slot-value transmitter 'gate-address)
+			   (float (slot-value gesture 'volume))))
+
+(defmethod transmit-gesture-via-voice-transmitter ((gesture osc-noteoff) (transmitter gesture-transmitter))
+  (setf (slot-value transmitter 'hanging-tones)
+	(remove (float (slot-value gesture 'freq)) (slot-value transmitter 'hanging-tones)
+		:test #'equal))
+  (if (slot-value transmitter 'hanging-tones)
+      (sguenz-send-osc-message (slot-value transmitter 'freq-address)
+			       (car (slot-value transmitter 'hanging-tones)))
+      (sguenz-send-osc-message (slot-value transmitter 'gate-address) 0.0)))
 
 (defmethod transmit-gesture :before ((mess-obj osc-tuned-trigger))
   ;; (print 'transmit-tuned-trigger)
@@ -660,24 +671,34 @@
 		 15
 		 4)))
 
+(defparameter *wub-transmitter* (make-instance 'gesture-transmitter
+					       :gate-address "/command/sgynth_wub_gate"
+					       :freq-address "/command/sgynth_wub_freq"))
+(defparameter *organ-transmitters*
+  (loop for i from 1 to 4
+     collect (make-instance 'gesture-transmitter
+			    :gate-address (format nil "/command/sgynth_organ_voice~a_gate" i)
+			    :freq-address (format nil "/command/sgynth_organ_voice~a_freq" i))))
+
+
 (defun make-bass-note (i note-idx gate)
   (case *bass-grid-midi-channel*
     (0 (if (> gate 0)
 	   (make-instance 'osc-noteon
-			  :gate-address "/command/sgynth_wub_gate"
 			  :volume gate
-			  :freq-address "/command/sgynth_wub_freq"
-			  :freq (* 20 (expt 2 (/ note-idx 12))))
+			  :freq (* 20 (expt 2 (/ note-idx 12)))
+			  :transmitter *wub-transmitter*)
 	   (make-instance 'osc-noteoff
-			  :gate-address "/command/sgynth_wub_gate")))
+			  :freq (* 20 (expt 2 (/ note-idx 12)))
+			  :transmitter *wub-transmitter*)))
     (1 (if (> gate 0)
 	   (make-instance 'osc-noteon
-			  :gate-address (format nil "/command/sgynth_organ_voice~a_gate" (+ i 1))
 			  :volume gate
-			  :freq-address (format nil "/command/sgynth_organ_voice~a_freq" (+ i 1))
-			  :freq (* 20 (expt 2 (/ note-idx 12))))
+			  :freq (* 20 (expt 2 (/ note-idx 12)))
+			  :transmitter (nth i *organ-transmitters*))
 	   (make-instance 'osc-noteoff
-			  :gate-address (format nil "/command/sgynth_organ_voice~a_gate" (+ i 1)))))
+			  :freq (* 20 (expt 2 (/ note-idx 12)))
+			  :transmitter (nth i *organ-transmitters*))))
     (2 (if (> gate 0)
 	   (make-instance 'osc-tuned-trigger
 			  :gate-address (format nil "/command/sgynth_string_string~a_gate" (+ i 1))
