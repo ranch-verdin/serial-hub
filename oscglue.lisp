@@ -51,3 +51,43 @@
 (defmethod sequencers::hang-play-tone ((seq free-sequence) (gesture osc-trigger))
   );; nothing to do with percussive triggers
 
+(defclass osc-noteon
+    (osc-performance-gesture)
+  ((gate-address :initarg :gate-address)
+   (volume :initarg :volume)
+   (freq-address :initarg :freq-address)
+   (freq :initarg :freq)))
+
+(defclass osc-noteoff
+    (osc-performance-gesture)
+  ((gate-address :initarg :gate-address)))
+
+(defun osc-note= (x y)
+  (string= (slot-value x 'gate-address)
+	   (slot-value y 'gate-address)))
+
+(defmethod record-gesture :after ((gesture osc-noteon) (seq free-sequence))
+  (when (sequencers::armed-and-ready seq)
+    (pushnew (note-off gesture)
+	     (sequencers::hanging-rec-tones seq)
+	     :test #'osc-note=)))
+
+(defmethod record-gesture :after ((gesture osc-noteoff) (seq free-sequence))
+  (when (sequencers::armed-and-ready seq)
+    (setf (sequencers::hanging-rec-tones seq)
+	  (remove gesture (sequencers::hanging-rec-tones seq)
+		  :test #'osc-note=))))
+
+(defmethod note-off ((note-on osc-noteon))
+  (make-instance 'osc-noteoff
+		 :gate-address (slot-value note-on 'gate-address)))
+
+(defmethod sequencers::hang-play-tone ((seq free-sequence) (gesture osc-noteon))
+  (push (note-off gesture)
+	(sequencers::hanging-play-tones seq)))
+
+(defmethod sequencers::hang-play-tone ((seq free-sequence) (gesture osc-noteoff))
+  (setf (sequencers::hanging-play-tones seq)
+	(remove gesture (sequencers::hanging-play-tones seq)
+		:test #'osc-note=)))
+

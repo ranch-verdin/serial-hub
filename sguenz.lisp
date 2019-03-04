@@ -199,7 +199,7 @@
 	    (record-gesture ev seq))
 	  (get-section-phrases *current-section*)))
 
-(defmethod handle-event ((ev osc-trigger))
+(defmethod handle-event ((ev osc-performance-gesture))
   (print 'handling-osc-performance-gesture)
   (unless *remix-record*
     (lookahead-store ev))
@@ -404,6 +404,22 @@
     ;; (print (osc:decode-bundle mess))
     (usocket:socket-send *sgynth-socket* mess (length mess))))
 
+(defmethod transmit-gesture ((mess-obj osc-noteon))
+  ;; (print 'transmit-trigger)
+  (let ((freqmess (osc:encode-message (slot-value mess-obj 'freq-address)
+				      (float (slot-value mess-obj 'freq))))
+	(gatemess (osc:encode-message (slot-value mess-obj 'gate-address)
+				      (float (slot-value mess-obj 'volume)))))
+    ;; (print (osc:decode-bundle mess))
+    (usocket:socket-send *sgynth-socket* freqmess (length freqmess))
+    (usocket:socket-send *sgynth-socket* gatemess (length gatemess))))
+
+(defmethod transmit-gesture ((mess-obj osc-noteoff))
+  ;; (print 'transmit-trigger)
+  (let ((mess (osc:encode-message (slot-value mess-obj 'gate-address) 0.0)))
+    ;; (print (osc:decode-bundle mess))
+    (usocket:socket-send *sgynth-socket* mess (length mess))))
+
 (defmethod transmit-gesture :before ((mess-obj osc-tuned-trigger))
   ;; (print 'transmit-tuned-trigger)
   (let ((mess (osc:encode-message (slot-value mess-obj 'freq-address)
@@ -554,15 +570,18 @@
 (defun lower-half-button-1 (up-or-down)
   (case *lower-half-mode*
     (:grid (set-grid-length up-or-down))
-    (:bass (setf *bass-grid-ticker-function* :volume))))
+    (:bass (setf *bass-grid-ticker-function* :volume)
+	   (print 'bass-grid-ticker-volume))))
 (defun lower-half-button-2 (up-or-down)
   (case *lower-half-mode*
     (:grid (timebase up-or-down))
-    (:bass (setf *bass-grid-ticker-function* :octave))))
+    (:bass (setf *bass-grid-ticker-function* :octave)
+	   (print 'bass-grid-ticker-octave))))
 (defun lower-half-button-3 (up-or-down)
   (case *lower-half-mode*
     (:grid (swing up-or-down))
-    (:bass (setf *bass-grid-ticker-function* :channel))))
+    (:bass (setf *bass-grid-ticker-function* :channel)
+	   (print 'bass-grid-ticker-channel))))
 
 (defparameter *function-buttons*
   (list (list #'midi-assign #'remix-record #'rec #'del)
@@ -638,23 +657,29 @@
 		 4)))
 
 (defun make-bass-note (i note-idx gate)
-  (if (> gate 0)
-      (let ((foo (format nil "/command/sgynth_string_string~a_freq" (+ i 1)))
-	    (bar (format nil "/command/sgynth_string_string~a_gate" (+ i 1))))
-	(make-instance 'osc-tuned-trigger
-		       :gate-address bar
-		       :volume 1
-		       :freq-address foo
-		       :freq (* 20 (expt 2 (/ note-idx 12)))))))
-
-#+nil
-(defun make-bass-note (i note-idx gate)
-  (let ((foo (format nil "/command/sgynth_organ_voice~a_freq" (+ i 1)))
-	(bar (format nil "/command/sgynth_organ_voice~a_gate" (+ i 1))))
-    (list (make-instance 'osc-trigger
-			 :raw-osc (osc:encode-message foo (* 20 (expt 2 (/ note-idx 12)))))
-	  (make-instance 'osc-trigger
-			 :raw-osc (osc:encode-message bar gate)))))
+  (case *bass-grid-midi-channel*
+    (0 (if (> gate 0)
+	   (make-instance 'osc-noteon
+			  :gate-address "/command/sgynth_wub_gate"
+			  :volume gate
+			  :freq-address "/command/sgynth_wub_freq"
+			  :freq (* 20 (expt 2 (/ note-idx 12))))
+	   (make-instance 'osc-noteoff
+			  :gate-address "/command/sgynth_wub_gate")))
+    (1 (if (> gate 0)
+	   (make-instance 'osc-noteon
+			  :gate-address (format nil "/command/sgynth_organ_voice~a_gate" (+ i 1))
+			  :volume gate
+			  :freq-address (format nil "/command/sgynth_organ_voice~a_freq" (+ i 1))
+			  :freq (* 20 (expt 2 (/ note-idx 12))))
+	   (make-instance 'osc-noteoff
+			  :gate-address (format nil "/command/sgynth_organ_voice~a_gate" (+ i 1)))))
+    (2 (if (> gate 0)
+	   (make-instance 'osc-tuned-trigger
+			  :gate-address (format nil "/command/sgynth_string_string~a_gate" (+ i 1))
+			  :volume 1
+			  :freq-address (format nil "/command/sgynth_string_string~a_freq" (+ i 1))
+			  :freq (* 20 (expt 2 (/ note-idx 12))))))))
 
 (defun bass-button (j i up-or-down)
   (let* ((note-idx (+ *bass-grid-root-note*
