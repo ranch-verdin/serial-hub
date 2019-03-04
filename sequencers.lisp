@@ -250,41 +250,20 @@
     (push gesture (aref (fs-memory seq)
 			(ticks-index seq)))))
 
-(defmethod record-gesture :after ((gesture note-on-midi-message) (seq free-sequence))
-  (when (armed-and-ready seq)
-    (pushnew (note-off gesture)
-	     (hanging-rec-tones seq)
-	     :test #'midi-note=)))
-
-(defmethod record-gesture :after ((gesture note-off-midi-message) (seq free-sequence))
-  (when (armed-and-ready seq)
-    (setf (hanging-rec-tones seq)
-	  (remove gesture (hanging-rec-tones seq)
-		  :test #'midi-note=))))
-
 (defgeneric note-off (note-on))
 (defmethod note-off (thing)
   (declare (ignore thing))
   nil)
 
-(defmethod note-off ((note-on note-on-midi-message))
-  (let ((orig-raw-midi (slot-value note-on
-				   'cl-rtmidi::raw-midi)))
-    (make-instance 'note-off-midi-message
-		   :raw-midi (cons (logand #b11101111 (car orig-raw-midi))
-				   (copy-list (cdr orig-raw-midi))))))
+(defgeneric hang-play-tone (seq gesture));; play equivalent of record-gesture
 
 (defmethod read-gestures ((seq free-sequence))
   (reverse
    (loop for gesture in (aref (fs-memory seq)
 			      (ticks-index seq))
-      ;; XXX hack! we can only read each gesture once - badish..
-      do (typecase gesture
-	   (note-on-midi-message (push (note-off gesture)
-				       (hanging-play-tones seq)))
-	   (note-off-midi-message (setf (hanging-play-tones seq)
-					(remove gesture (hanging-play-tones seq)
-						:test #'midi-note=))))
+      ;; XXX careful! we can only read each gesture once because
+      ;; there's a side-effect of 'hanging tones'
+      do (hang-play-tone seq gesture)
       collect gesture)))
 
 (defmethod drain-hanging-rec-tones ((seq free-sequence))
@@ -317,7 +296,7 @@
 	(:push-extend (if (< (sequence-tick-length seq)
 			     *max-free-seq-length*)
 			  (incf (sequence-tick-length seq))
-			  (progn (break "monkey")
+			  (progn (break "max free seq length exceeded")
 				 (setf (play-state seq)
 				       :repeat)
 				 (setf (sequence-tick-length seq)
@@ -378,6 +357,8 @@
       (rec-unarm seq)
       (rec-arm seq)))
 
+
+;; FIXME  doesn't really belong here - should be in sguenz.lisp I think
 (defgeneric loop-cycle (seq &optional downbeat-gestures))
 (defmethod loop-cycle ((seq free-sequence) &optional downbeat-gestures)
   (case (play-state seq)
@@ -501,3 +482,35 @@
 
 (defmethod appending-copy-sequence ((from grid-sequence) (to grid-sequence))
   (copy-sequence from to))
+
+;; below are special methods for recording midi - to add a class of OSC gestures with
+;; noteoff/noteon logic provide the following methods as applied to your OSC class
+
+(defmethod record-gesture :after ((gesture note-on-midi-message) (seq free-sequence))
+  (when (armed-and-ready seq)
+    (pushnew (note-off gesture)
+	     (hanging-rec-tones seq)
+	     :test #'midi-note=)))
+
+(defmethod record-gesture :after ((gesture note-off-midi-message) (seq free-sequence))
+  (when (armed-and-ready seq)
+    (setf (hanging-rec-tones seq)
+	  (remove gesture (hanging-rec-tones seq)
+		  :test #'midi-note=))))
+
+(defmethod note-off ((note-on note-on-midi-message))
+  (let ((orig-raw-midi (slot-value note-on
+				   'cl-rtmidi::raw-midi)))
+    (make-instance 'note-off-midi-message
+		   :raw-midi (cons (logand #b11101111 (car orig-raw-midi))
+				   (copy-list (cdr orig-raw-midi))))))
+
+(defmethod hang-play-tone ((seq free-sequence) (gesture note-on-midi-message))
+  (push (note-off gesture)
+	(hanging-play-tones seq)))
+
+(defmethod hang-play-tone ((seq free-sequence) (gesture note-off-midi-message))
+  (setf (hanging-play-tones seq)
+	(remove gesture (hanging-play-tones seq)
+		:test #'midi-note=)))
+

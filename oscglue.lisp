@@ -27,14 +27,27 @@
 (defun test-bump ()
   (osc-send "/command/sgynth_bd_bd" 1.0))
 
-(defclass osc-message
+(defclass osc-gesture
     ()
-  ((raw-osc :initarg :raw-osc)))
+  ())
+
+(defclass osc-performance-gesture
+    ()
+  ())
 
 (defclass osc-trigger
-    (osc-message)
-  ())
+    (osc-performance-gesture)
+  ((gate-address :initarg :gate-address)
+   (volume :initarg :volume)))
 
-(defclass osc-param
-    (osc-message)
-  ())
+(defclass osc-tuned-trigger
+    (osc-trigger)
+  ((freq-address :initarg :freq-address)
+   (freq :initarg :freq)))
+
+(defmethod note-off ((gesture osc-trigger))
+  nil);; nothing to do for percussive gestures
+
+(defmethod sequencers::hang-play-tone ((seq free-sequence) (gesture osc-trigger))
+  );; nothing to do with percussive gestures
+

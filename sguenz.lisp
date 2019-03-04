@@ -12,36 +12,48 @@
 
 (defun default-step-sequencer-triggers ()
   (list t (list (make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_hatz_hh" 1.0)) ;; closed hh
+			       :gate-address "/command/sgynth_hatz_hh"
+			       :volume 1.0) ;; closed hh
 		(make-instance 'note-off-midi-message
 			       :raw-midi '(144 47 81)) ;; tom Lo
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_sd_sd" 1.0)) ;; snare
+			       :gate-address "/command/sgynth_sd_sd"
+			       :volume  1.0)
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_bd_bd" 1.0))) ;; kick
+			       :gate-address "/command/sgynth_bd_bd"
+			       :volume 1.0))
 	:emph (list (make-instance 'osc-trigger
-				   :raw-osc (osc:encode-message "/command/sgynth_hatz_oh" 1.0)) ;; open hh
+				   :gate-address "/command/sgynth_hatz_oh"
+				   :volume 1.0)
 		    (make-instance 'note-off-midi-message
 				   :raw-midi '(144 48 81)) ;; Tom Hi
 		    (make-instance 'osc-trigger
-				   :raw-osc (osc:encode-message "/command/sgynth_cp_cp" 1.0)) ;; rimshot
+				   :gate-address "/command/sgynth_cp_cp"
+				   :volume 1.0)
 		    (make-instance 'osc-trigger
-				   :raw-osc (osc:encode-message "/command/sgynth_bd_bl" 1.0))) ;; long kick
+				   :gate-address "/command/sgynth_bd_bl"
+				   :volume 1.0))
 	))
 
 (defparameter *gm-drum-notes*
   (append (list (make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_bd_bl" 1.0))
+			       :gate-address "/command/sgynth_bd_bl"
+			       :volume 1.0)
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_bd_bd" 1.0))
+			       :gate-address "/command/sgynth_bd_bd"
+			       :volume 1.0)
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_sd_sd" 1.0))
+			       :gate-address "/command/sgynth_sd_sd"
+			       :volume  1.0)
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_hatz_hh" 1.0))
+			       :gate-address "/command/sgynth_hatz_hh"
+			       :volume 1.0)
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_hatz_oh" 1.0))
+			       :gate-address "/command/sgynth_hatz_oh"
+			       :volume 1.0)
 		(make-instance 'osc-trigger
-			       :raw-osc (osc:encode-message "/command/sgynth_cp_cp" 1.0)))
+			       :gate-address "/command/sgynth_cp_cp"
+			       :volume 1.0))
 	  (mapcar (lambda (note-num)
 		    (make-instance 'note-on-midi-message
 				   :raw-midi `(144 ,note-num 127)))
@@ -145,9 +157,6 @@
 (defmethod handle-event ((ev t))
   (warn "unknown event received: ~a" ev))
 
-(defmethod handle-event ((ev t))
-  (warn "unknown event received: ~a" ev))
-
 (defun get-section-phrases (&optional (sec *current-section*))
   (list (slot-value sec 'grid-seq)
 	(slot-value sec 'free-seq1)
@@ -178,7 +187,20 @@
       (set-selected-trig-midi ev (get-active-grid))
       (call-next-method)))
 
+(defmethod handle-event ((ev osc-trigger))
+  (if *assigning-midi*
+      (set-selected-trig-midi ev (get-active-grid))
+      (call-next-method)))
+
 (defmethod handle-event ((ev midi-performance-gesture))
+  (unless *remix-record*
+    (lookahead-store ev))
+  (mapcar (lambda (seq)
+	    (record-gesture ev seq))
+	  (get-section-phrases *current-section*)))
+
+(defmethod handle-event ((ev osc-trigger))
+  (print 'handling-osc-performance-gesture)
   (unless *remix-record*
     (lookahead-store ev))
   (mapcar (lambda (seq)
@@ -375,8 +397,17 @@
 (defmethod transmit-gesture ((mess midi-performance-gesture))
   (write-midi-message mess))
 
-(defmethod transmit-gesture ((mess-obj osc-message))
-  (let ((mess (slot-value mess-obj 'raw-osc)))
+(defmethod transmit-gesture ((mess-obj osc-trigger))
+  ;; (print 'transmit-trigger)
+  (let ((mess (osc:encode-message (slot-value mess-obj 'gate-address)
+				  (float (slot-value mess-obj 'volume)))))
+    ;; (print (osc:decode-bundle mess))
+    (usocket:socket-send *sgynth-socket* mess (length mess))))
+
+(defmethod transmit-gesture :before ((mess-obj osc-tuned-trigger))
+  ;; (print 'transmit-tuned-trigger)
+  (let ((mess (osc:encode-message (slot-value mess-obj 'freq-address)
+				  (float (slot-value mess-obj 'freq)))))
     ;; (print (osc:decode-bundle mess))
     (usocket:socket-send *sgynth-socket* mess (length mess))))
 
@@ -610,10 +641,11 @@
   (if (> gate 0)
       (let ((foo (format nil "/command/sgynth_string_string~a_freq" (+ i 1)))
 	    (bar (format nil "/command/sgynth_string_string~a_gate" (+ i 1))))
-	(list (make-instance 'osc-trigger
-			     :raw-osc (osc:encode-message foo (* 20 (expt 2 (/ note-idx 12)))))
-	      (make-instance 'osc-trigger
-			     :raw-osc (osc:encode-message bar gate))))))
+	(make-instance 'osc-tuned-trigger
+		       :gate-address bar
+		       :volume 1
+		       :freq-address foo
+		       :freq (* 20 (expt 2 (/ note-idx 12)))))))
 
 #+nil
 (defun make-bass-note (i note-idx gate)
@@ -635,8 +667,8 @@
 	      15
 	      0))
     (print (list up-or-down j i))
-    (mapcar #'transmit-gesture g)
-    (mapcar #'handle-event g)))
+    (transmit-gesture g)
+    (handle-event g)))
 
 (defparameter *bottom-half-buttons*
   (loop for y below 4
