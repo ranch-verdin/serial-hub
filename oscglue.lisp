@@ -46,8 +46,8 @@
    (freq :initarg :freq)))
 
 (defmethod note-off ((gesture osc-trigger))
-  nil);; nothing to do for percussive gestures
+  nil);; there's no corresponding note-off for percussive triggers
 
 (defmethod sequencers::hang-play-tone ((seq free-sequence) (gesture osc-trigger))
-  );; nothing to do with percussive gestures
+  );; nothing to do with percussive triggers
 
