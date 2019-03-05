@@ -405,10 +405,10 @@
   (sguenz-send-osc-message (slot-value mess-obj 'gate-address)
 			   (float (slot-value mess-obj 'volume))))
 
+;; XXX bad hack - can we use osc-performance gesture to transmit-gesture?
 (defmethod transmit-gesture ((gesture osc-noteon))
   ;; (print 'transmit-trigger)
   (transmit-gesture-via-voice-transmitter gesture (slot-value gesture 'transmitter)))
-
 (defmethod transmit-gesture ((gesture osc-noteoff))
   ;; (print 'transmit-trigger)
   (transmit-gesture-via-voice-transmitter gesture (slot-value gesture 'transmitter)))
